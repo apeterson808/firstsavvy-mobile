@@ -158,8 +158,7 @@ export default function ChildHomeScreen() {
             </View>
           </View>
           <TouchableOpacity
-            onPress={async () => {
-              await supabase.auth.signOut();
+            onPress={() => {
               setActiveChild(null);
               if (profile) {
                 router.replace('/(tabs)/kids');
