@@ -220,11 +220,6 @@ export default function ChildHomeScreen() {
               </View>
               <Text style={styles.sectionTitle}>Your Tasks</Text>
             </View>
-            {tasks.length > 0 && (
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{tasks.length} total</Text>
-              </View>
-            )}
           </View>
 
           <View style={styles.taskList}>
@@ -279,11 +274,6 @@ export default function ChildHomeScreen() {
               </View>
               <Text style={styles.sectionTitle}>Rewards</Text>
             </View>
-            {rewards.length > 0 && (
-              <View style={[styles.countBadge, styles.rewardCountBadge]}>
-                <Text style={styles.countBadgeText}>{rewards.length} available</Text>
-              </View>
-            )}
           </View>
 
           <View style={styles.taskList}>
@@ -445,11 +435,7 @@ const styles = StyleSheet.create({
   },
   rewardIconBg: { backgroundColor: '#0d6b3e' },
   sectionTitle: { fontFamily: 'Nunito-ExtraBold', fontSize: 18, color: '#f1f5f9' },
-  countBadge: {
-    backgroundColor: '#1e3a5f', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
-  },
-  rewardCountBadge: { backgroundColor: '#052e16' },
-  countBadgeText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#60a5fa' },
+
 
   // Task list
   taskList: { gap: 8 },
