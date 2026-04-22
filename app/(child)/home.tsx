@@ -16,7 +16,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Star, Music, Bed, Trash2, Smile, Gift, Trophy, Sparkles, Plane, ShoppingBag, Heart, Zap, BookOpen, Utensils, Hop as Home, CircleCheck, X } from 'lucide-react-native';
+import {
+  Star, Music, Bed, Trash2, Smile, Gift, Trophy, Sparkles,
+  Plane, ShoppingBag, Heart, Zap, BookOpen, Utensils,
+  Hop as Home, CircleCheck, X,
+} from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -106,7 +110,11 @@ export default function ChildHomeScreen() {
         Authorization: `Bearer ${supabaseAnonKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ childId: resolvedChildId, taskId: selectedTask.id, starsEarned: selectedTask.star_reward ?? 1 }),
+      body: JSON.stringify({
+        childId: resolvedChildId,
+        taskId: selectedTask.id,
+        starsEarned: selectedTask.star_reward ?? 1,
+      }),
     });
     setSubmitting(null);
     setSelectedTask(null);
@@ -144,9 +152,11 @@ export default function ChildHomeScreen() {
     );
   }
 
+  const modalIconColor = selectedTask?.color ?? '#60a5fa';
+  const ModalIcon = selectedTask?.icon ? (ICON_MAP[selectedTask.icon] ?? Star) : Star;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Fixed top section */}
       <View style={styles.fixedTop}>
         {/* Header */}
         <View style={styles.header}>
@@ -164,6 +174,7 @@ export default function ChildHomeScreen() {
             </View>
           </View>
           <TouchableOpacity
+            style={styles.logoutBtn}
             onPress={() => {
               setActiveChild(null);
               if (profile) {
@@ -172,7 +183,6 @@ export default function ChildHomeScreen() {
                 router.replace('/(auth)/login');
               }
             }}
-            style={styles.logoutBtn}
           >
             <Text style={styles.logoutText}>Log out</Text>
           </TouchableOpacity>
@@ -213,7 +223,13 @@ export default function ChildHomeScreen() {
         <ScrollView
           style={{ width: SCREEN_WIDTH }}
           contentContainerStyle={styles.pageContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#f59e0b" />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); load(); }}
+              tintColor="#f59e0b"
+            />
+          }
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.sectionHeader}>
@@ -238,16 +254,19 @@ export default function ChildHomeScreen() {
             )}
             {tasks.map(task => {
               const status = taskStatus(task.id);
+              const isDisabled = status !== 'none';
               return (
                 <TouchableOpacity
                   key={task.id}
-                  style={[styles.taskCard, status !== 'none' && styles.taskCardDone]}
-                  onPress={() => status === 'none' && setSelectedTask(task)}
-                  disabled={status !== 'none'}
-                  activeOpacity={0.75}
+                  style={[styles.taskCard, isDisabled && styles.taskCardDone]}
+                  onPress={() => !isDisabled && setSelectedTask(task)}
+                  activeOpacity={isDisabled ? 1 : 0.75}
                 >
                   <TaskIcon name={task.icon} color={task.color} />
-                  <Text style={[styles.taskTitle, status === 'done' && styles.taskTitleStrike]} numberOfLines={1}>
+                  <Text
+                    style={[styles.taskTitle, status === 'done' && styles.taskTitleStrike]}
+                    numberOfLines={1}
+                  >
                     {task.title}
                   </Text>
                   <View style={styles.taskRight}>
@@ -327,33 +346,27 @@ export default function ChildHomeScreen() {
       >
         <Pressable style={styles.modalOverlay} onPress={() => setSelectedTask(null)}>
           <Pressable style={styles.modalSheet} onPress={() => {}}>
-            {/* Handle bar */}
             <View style={styles.sheetHandle} />
 
-            {/* Close button */}
             <TouchableOpacity style={styles.sheetClose} onPress={() => setSelectedTask(null)}>
               <X size={18} color="#64748b" />
             </TouchableOpacity>
 
-            {/* Task icon */}
             <View style={[
               styles.modalIconWrap,
-              { backgroundColor: (selectedTask?.color ?? '#60a5fa') + '20', borderColor: (selectedTask?.color ?? '#60a5fa') + '40' }
+              { backgroundColor: modalIconColor + '20', borderColor: modalIconColor + '40' },
             ]}>
-              {(() => {
-                const IconComp = selectedTask?.icon ? (ICON_MAP[selectedTask.icon] ?? Star) : Star;
-                return <IconComp size={36} color={selectedTask?.color ?? '#60a5fa'} strokeWidth={1.5} />;
-              })()}
+              <ModalIcon size={36} color={modalIconColor} strokeWidth={1.5} />
             </View>
 
             <Text style={styles.modalTaskTitle}>{selectedTask?.title}</Text>
             <Text style={styles.modalSubtitle}>Complete this task to earn stars!</Text>
 
-            {/* Stars reward pill */}
             <View style={styles.modalStarsPill}>
               <Star size={18} color="#f59e0b" fill="#f59e0b" />
               <Text style={styles.modalStarsText}>
-                {selectedTask?.star_reward ?? 1} {(selectedTask?.star_reward ?? 1) === 1 ? 'star' : 'stars'}
+                {selectedTask?.star_reward ?? 1}{' '}
+                {(selectedTask?.star_reward ?? 1) === 1 ? 'star' : 'stars'}
               </Text>
             </View>
 
@@ -361,14 +374,13 @@ export default function ChildHomeScreen() {
               Your parent will review and approve your submission.
             </Text>
 
-            {/* Submit button */}
             <TouchableOpacity
-              style={[styles.submitBtn, submitting === selectedTask?.id && styles.submitBtnDisabled]}
+              style={[styles.submitBtn, !!submitting && styles.submitBtnDisabled]}
               onPress={submitCompletion}
               disabled={!!submitting}
               activeOpacity={0.85}
             >
-              {submitting === selectedTask?.id ? (
+              {submitting ? (
                 <ActivityIndicator color="#000" />
               ) : (
                 <>
@@ -391,10 +403,8 @@ export default function ChildHomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0d1117' },
   loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d1117' },
-
   fixedTop: { paddingHorizontal: 16, paddingTop: 4 },
 
-  // Header
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 16,
@@ -417,7 +427,6 @@ const styles = StyleSheet.create({
   },
   logoutText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#94a3b8' },
 
-  // Stars card
   starsCard: {
     borderRadius: 18, marginBottom: 14, overflow: 'hidden',
     backgroundColor: '#1a1200', borderWidth: 1, borderColor: '#f59e0b40',
@@ -432,17 +441,17 @@ const styles = StyleSheet.create({
   },
   starsValue: { fontFamily: 'Nunito-ExtraBold', fontSize: 44, color: '#f59e0b', lineHeight: 52 },
 
-  // Page dots
-  pageDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginBottom: 14 },
+  pageDots: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 8, marginBottom: 14,
+  },
   dotWrap: { padding: 4 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#334155' },
   dotActive: { backgroundColor: '#f59e0b', width: 24 },
 
-  // Pager
   pager: { flex: 1 },
   pageContent: { paddingHorizontal: 16, paddingBottom: 48, paddingTop: 4 },
 
-  // Section headers
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10,
   },
@@ -459,7 +468,6 @@ const styles = StyleSheet.create({
   rewardCountBadge: { backgroundColor: '#052e16' },
   countBadgeText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#60a5fa' },
 
-  // Task list
   taskList: { gap: 8 },
   taskCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -493,7 +501,6 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#475569' },
 
-  // Modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
@@ -533,9 +540,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 10, borderRadius: 40,
     marginBottom: 20,
   },
-  modalStarsText: {
-    fontFamily: 'Nunito-ExtraBold', fontSize: 20, color: '#f59e0b',
-  },
+  modalStarsText: { fontFamily: 'Nunito-ExtraBold', fontSize: 20, color: '#f59e0b' },
   modalNote: {
     fontFamily: 'Inter-Regular', fontSize: 13, color: '#475569',
     textAlign: 'center', marginBottom: 28, paddingHorizontal: 16,
