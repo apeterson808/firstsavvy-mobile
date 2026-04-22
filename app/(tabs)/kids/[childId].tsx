@@ -399,16 +399,6 @@ export default function ChildDetailScreen() {
           </View>
         </LinearGradient>
 
-        {/* Partner info card — shown instead of child tabs */}
-        {child.family_role === 'spouse_partner' && (
-          <View style={styles.partnerCard}>
-            <Text style={styles.partnerCardTitle}>Shared Finance Partner</Text>
-            <Text style={styles.partnerCardDesc}>
-              {name} is set up as a financial partner with shared access to family accounts and transactions.
-            </Text>
-          </View>
-        )}
-
         {/* Pending approvals banner */}
         {child.family_role !== 'spouse_partner' && pendingApprovals.length > 0 && (
           <View style={styles.approvalBanner}>
@@ -694,13 +684,6 @@ const styles = StyleSheet.create({
   partnerChip: { backgroundColor: '#1e3a5f', borderColor: '#3b82f6' },
   partnerChipText: { color: '#93c5fd' },
   ageText: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b' },
-
-  partnerCard: {
-    backgroundColor: '#1e293b', borderRadius: 16, borderWidth: 1, borderColor: '#334155',
-    padding: 20, marginBottom: 16,
-  },
-  partnerCardTitle: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: '#f1f5f9', marginBottom: 6 },
-  partnerCardDesc: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b', lineHeight: 22 },
 
   // Approval banner
   approvalBanner: {
