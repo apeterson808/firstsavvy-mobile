@@ -19,9 +19,9 @@ interface Task {
   id: string;
   title: string;
   description: string | null;
-  category: string | null;
   icon: string | null;
   color: string | null;
+  star_reward: number | null;
 }
 
 interface TaskCompletion {
@@ -35,6 +35,7 @@ interface Reward {
   id: string;
   title: string;
   description: string | null;
+  star_cost: number | null;
   is_active: boolean;
 }
 
@@ -73,8 +74,8 @@ export default function ChildHomeScreen() {
     const [taskRes, completionRes, rewardRes] = await Promise.all([
       supabase
         .from('tasks')
-        .select('id, title, description, category, icon, color')
-        .eq('profile_id', parentProfileId)
+        .select('id, title, description, icon, color, star_reward')
+        .eq('assigned_to_child_id', childId)
         .eq('is_active', true)
         .order('created_at', { ascending: false }),
       supabase
@@ -83,8 +84,8 @@ export default function ChildHomeScreen() {
         .eq('child_profile_id', childId),
       supabase
         .from('rewards')
-        .select('id, title, description, is_active')
-        .eq('profile_id', parentProfileId)
+        .select('id, title, description, star_cost, is_active')
+        .eq('assigned_to_child_id', childId)
         .eq('is_active', true)
         .is('redeemed_at', null)
         .limit(3),
@@ -101,11 +102,12 @@ export default function ChildHomeScreen() {
     const existing = completions.find(c => c.task_id === taskId && c.status !== 'rejected');
     if (existing) return;
     setSubmitting(taskId);
+    const task = tasks.find(t => t.id === taskId);
     await supabase.from('task_completions').insert({
       child_profile_id: childId,
       task_id: taskId,
       status: 'pending_approval',
-      stars_earned: 5,
+      stars_earned: task?.star_reward ?? 5,
     });
     setSubmitting(null);
     load();
@@ -244,6 +246,12 @@ export default function ChildHomeScreen() {
                     <Text style={styles.rewardDesc} numberOfLines={1}>{reward.description}</Text>
                   )}
                 </View>
+                {reward.star_cost != null && (
+                  <View style={styles.rewardCost}>
+                    <Star size={12} color="#fbbf24" fill="#fbbf24" />
+                    <Text style={styles.rewardCostText}>{reward.star_cost}</Text>
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -313,4 +321,9 @@ const styles = StyleSheet.create({
   rewardInfo: { flex: 1 },
   rewardTitle: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#f1f5f9' },
   rewardDesc: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#64748b', marginTop: 2 },
+  rewardCost: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#1c1a0e', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+  },
+  rewardCostText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#fbbf24' },
 });
