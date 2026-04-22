@@ -72,34 +72,18 @@ export default function ChildHomeScreen() {
   async function load() {
     if (!resolvedChildId) { setLoading(false); return; }
 
-    const [childRes, taskRes, completionRes, rewardRes] = await Promise.all([
-      supabase
-        .from('child_profiles')
-        .select('child_name, avatar_url, stars_balance, cash_balance')
-        .eq('id', resolvedChildId)
-        .maybeSingle(),
-      supabase
-        .from('tasks')
-        .select('id, title, icon, color, star_reward')
-        .eq('assigned_to_child_id', resolvedChildId)
-        .eq('is_active', true)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('task_completions')
-        .select('id, task_id, status, stars_earned')
-        .eq('child_profile_id', resolvedChildId),
-      supabase
-        .from('rewards')
-        .select('id, title, star_cost, image_url, icon, color')
-        .eq('assigned_to_child_id', resolvedChildId)
-        .eq('is_active', true)
-        .is('redeemed_at', null),
-    ]);
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    const res = await fetch(
+      `${supabaseUrl}/functions/v1/get-child-data?childId=${resolvedChildId}`,
+      { headers: { Authorization: `Bearer ${supabaseAnonKey}` } }
+    );
+    const json = await res.json();
 
-    setChildData(childRes.data ?? null);
-    setTasks(taskRes.data ?? []);
-    setCompletions(completionRes.data ?? []);
-    setRewards(rewardRes.data ?? []);
+    setChildData(json.child ?? null);
+    setTasks(json.tasks ?? []);
+    setCompletions(json.completions ?? []);
+    setRewards(json.rewards ?? []);
     setLoading(false);
     setRefreshing(false);
   }
@@ -110,11 +94,19 @@ export default function ChildHomeScreen() {
     if (existing) return;
     setSubmitting(taskId);
     const task = tasks.find(t => t.id === taskId);
-    await supabase.from('task_completions').insert({
-      child_profile_id: resolvedChildId,
-      task_id: taskId,
-      status: 'pending_approval',
-      stars_earned: task?.star_reward ?? 1,
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    await fetch(`${supabaseUrl}/functions/v1/get-child-data`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${supabaseAnonKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        childId: resolvedChildId,
+        taskId,
+        starsEarned: task?.star_reward ?? 1,
+      }),
     });
     setSubmitting(null);
     load();
