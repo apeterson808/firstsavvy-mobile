@@ -69,13 +69,11 @@ function childDisplayName(child: ChildProfile) {
 function CollapsibleSection({
   label,
   icon,
-  count,
   children,
   defaultOpen = true,
 }: {
   label: string;
   icon?: React.ReactNode;
-  count: number;
   children: React.ReactNode;
   defaultOpen?: boolean;
 }) {
@@ -102,9 +100,6 @@ function CollapsibleSection({
         <View style={sectionStyles.labelRow}>
           {icon}
           <Text style={sectionStyles.label}>{label.toUpperCase()}</Text>
-          <View style={sectionStyles.countPill}>
-            <Text style={sectionStyles.countText}>{count}</Text>
-          </View>
         </View>
         <Animated.View style={{ transform: [{ rotate: spin }] }}>
           <ChevronDown size={16} color="#475569" />
@@ -126,11 +121,6 @@ const sectionStyles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#64748b',
     textTransform: 'uppercase', letterSpacing: 0.8,
   },
-  countPill: {
-    backgroundColor: '#1e293b', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2,
-    borderWidth: 1, borderColor: '#334155',
-  },
-  countText: { fontFamily: 'Inter-Medium', fontSize: 11, color: '#64748b' },
   body: {},
 });
 
@@ -272,7 +262,6 @@ export default function ContactsScreen() {
           <CollapsibleSection
             label="My Family"
             icon={<Users size={14} color="#64748b" />}
-            count={filteredChildren.length}
             defaultOpen
           >
             <View style={styles.card}>
@@ -280,7 +269,7 @@ export default function ContactsScreen() {
                 <TouchableOpacity
                   key={child.id}
                   style={[styles.contactRow, idx > 0 && styles.rowBorder]}
-                  onPress={() => router.push({ pathname: '/(tabs)/kids/[childId]', params: { childId: child.id } })}
+                  onPress={() => router.push({ pathname: '/(tabs)/kids/[id]', params: { id: child.id, kind: 'child' } })}
                   activeOpacity={0.7}
                 >
                   {child.avatar_url ? (
@@ -318,7 +307,6 @@ export default function ContactsScreen() {
           <CollapsibleSection
             key={label}
             label={label}
-            count={group.length}
             defaultOpen={label !== 'General Contacts'}
           >
             <View style={styles.card}>
@@ -326,12 +314,9 @@ export default function ContactsScreen() {
                 <TouchableOpacity
                   key={contact.id}
                   style={[styles.contactRow, idx > 0 && styles.rowBorder]}
-                  onPress={() => router.push({ pathname: '/(tabs)/kids/[contactId]', params: { contactId: contact.id } })}
+                  onPress={() => router.push({ pathname: '/(tabs)/kids/[id]', params: { id: contact.id, kind: 'contact' } })}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.avatar, { backgroundColor: contact.color ?? '#334155' }]}>
-                    <Text style={styles.avatarText}>{initials(contact.name)}</Text>
-                  </View>
                   <View style={styles.contactInfo}>
                     <Text style={styles.contactName}>{contact.name}</Text>
                     {contact.email && (
