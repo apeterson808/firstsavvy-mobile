@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,19 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Plus, Star, Users, Mail, Phone, X, ChevronRight } from 'lucide-react-native';
+import { Search, Plus, Star, Users, Mail, Phone, X, ChevronDown } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { router } from 'expo-router';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface Contact {
   id: string;
@@ -52,12 +59,80 @@ const NAMED_GROUPS = new Set(EXPLICIT_GROUPS);
 
 function initials(name: string) {
   const parts = name.trim().split(' ');
-  return (parts[0]?.[0] ?? '' + (parts[1]?.[0] ?? '')).toUpperCase().slice(0, 2);
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase().slice(0, 2);
 }
 
 function childDisplayName(child: ChildProfile) {
   return child.display_name ?? child.first_name ?? child.child_name;
 }
+
+function CollapsibleSection({
+  label,
+  icon,
+  count,
+  children,
+  defaultOpen = true,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  count: number;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const rotation = useRef(new Animated.Value(defaultOpen ? 1 : 0)).current;
+
+  function toggle() {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    const next = !open;
+    setOpen(next);
+    Animated.spring(rotation, {
+      toValue: next ? 1 : 0,
+      useNativeDriver: true,
+      tension: 60,
+      friction: 10,
+    }).start();
+  }
+
+  const spin = rotation.interpolate({ inputRange: [0, 1], outputRange: ['-90deg', '0deg'] });
+
+  return (
+    <View style={sectionStyles.wrap}>
+      <TouchableOpacity style={sectionStyles.header} onPress={toggle} activeOpacity={0.7}>
+        <View style={sectionStyles.labelRow}>
+          {icon}
+          <Text style={sectionStyles.label}>{label.toUpperCase()}</Text>
+          <View style={sectionStyles.countPill}>
+            <Text style={sectionStyles.countText}>{count}</Text>
+          </View>
+        </View>
+        <Animated.View style={{ transform: [{ rotate: spin }] }}>
+          <ChevronDown size={16} color="#475569" />
+        </Animated.View>
+      </TouchableOpacity>
+      {open && <View style={sectionStyles.body}>{children}</View>}
+    </View>
+  );
+}
+
+const sectionStyles = StyleSheet.create({
+  wrap: { marginBottom: 20 },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 4, marginBottom: 8,
+  },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  label: {
+    fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#64748b',
+    textTransform: 'uppercase', letterSpacing: 0.8,
+  },
+  countPill: {
+    backgroundColor: '#1e293b', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2,
+    borderWidth: 1, borderColor: '#334155',
+  },
+  countText: { fontFamily: 'Inter-Medium', fontSize: 11, color: '#64748b' },
+  body: {},
+});
 
 export default function ContactsScreen() {
   const { profile } = useAuth();
@@ -80,7 +155,10 @@ export default function ContactsScreen() {
   useEffect(() => { load(); }, [profile]);
 
   async function load() {
-    if (!profile) return;
+    if (!profile) {
+      setLoading(false);
+      return;
+    }
     const [contactRes, childRes, levelRes] = await Promise.all([
       supabase
         .from('contacts')
@@ -127,7 +205,7 @@ export default function ContactsScreen() {
     load();
   }
 
-  const filtered = useMemo(() => {
+  const filteredContacts = useMemo(() => {
     if (!search.trim()) return contacts;
     const q = search.toLowerCase();
     return contacts.filter(c =>
@@ -136,18 +214,24 @@ export default function ContactsScreen() {
     );
   }, [contacts, search]);
 
-  // Group by group_name matching the web app: explicit groups first, everything else = General Contacts
+  const filteredChildren = useMemo(() => {
+    if (!search.trim()) return children;
+    const q = search.toLowerCase();
+    return children.filter(c =>
+      childDisplayName(c).toLowerCase().includes(q)
+    );
+  }, [children, search]);
+
   const grouped = useMemo(() => {
     const result: Array<{ label: string; contacts: Contact[] }> = [];
     for (const g of EXPLICIT_GROUPS) {
-      const group = filtered.filter(c => c.group_name === g);
+      const group = filteredContacts.filter(c => c.group_name === g);
       if (group.length > 0) result.push({ label: g, contacts: group });
     }
-    // Everything without an explicit group goes under General Contacts (matches web app)
-    const general = filtered.filter(c => !c.group_name || !NAMED_GROUPS.has(c.group_name));
+    const general = filteredContacts.filter(c => !c.group_name || !NAMED_GROUPS.has(c.group_name));
     if (general.length > 0) result.push({ label: 'General Contacts', contacts: general });
     return result;
-  }, [filtered]);
+  }, [filteredContacts]);
 
   if (loading) {
     return (
@@ -183,19 +267,21 @@ export default function ContactsScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#60a5fa" />}
       >
-        {/* Family Section — child profiles */}
-        {children.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionLabelRow}>
-              <Users size={14} color="#64748b" />
-              <Text style={styles.sectionLabel}>MY FAMILY</Text>
-            </View>
+        {/* Family Section */}
+        {filteredChildren.length > 0 && (
+          <CollapsibleSection
+            label="My Family"
+            icon={<Users size={14} color="#64748b" />}
+            count={filteredChildren.length}
+            defaultOpen
+          >
             <View style={styles.card}>
-              {children.map((child, idx) => (
+              {filteredChildren.map((child, idx) => (
                 <TouchableOpacity
                   key={child.id}
                   style={[styles.contactRow, idx > 0 && styles.rowBorder]}
                   onPress={() => router.push({ pathname: '/(tabs)/kids/[childId]', params: { childId: child.id } })}
+                  activeOpacity={0.7}
                 >
                   {child.avatar_url ? (
                     <Image source={{ uri: child.avatar_url }} style={styles.avatarImg} />
@@ -220,23 +306,30 @@ export default function ContactsScreen() {
                       <Text style={styles.statPillText}>{child.stars_balance ?? 0}</Text>
                     </View>
                   )}
-                  <ChevronRight size={16} color="#334155" />
+                  <ChevronDown size={16} color="#334155" style={{ transform: [{ rotate: '-90deg' }] }} />
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
+          </CollapsibleSection>
         )}
 
-        {/* Contacts by group */}
+        {/* Grouped contacts */}
         {grouped.map(({ label, contacts: group }) => (
-          <View key={label} style={styles.section}>
-            <View style={styles.sectionLabelRow}>
-              <Text style={styles.sectionLabel}>{label.toUpperCase()}</Text>
-            </View>
+          <CollapsibleSection
+            key={label}
+            label={label}
+            count={group.length}
+            defaultOpen={label !== 'General Contacts'}
+          >
             <View style={styles.card}>
               {group.map((contact, idx) => (
-                <View key={contact.id} style={[styles.contactRow, idx > 0 && styles.rowBorder]}>
-                  <View style={[styles.avatar, { backgroundColor: contact.color ?? '#6B7280' }]}>
+                <TouchableOpacity
+                  key={contact.id}
+                  style={[styles.contactRow, idx > 0 && styles.rowBorder]}
+                  onPress={() => router.push({ pathname: '/(tabs)/kids/[contactId]', params: { contactId: contact.id } })}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.avatar, { backgroundColor: contact.color ?? '#334155' }]}>
                     <Text style={styles.avatarText}>{initials(contact.name)}</Text>
                   </View>
                   <View style={styles.contactInfo}>
@@ -247,17 +340,18 @@ export default function ContactsScreen() {
                         <Text style={styles.contactDetailText} numberOfLines={1}>{contact.email}</Text>
                       </View>
                     )}
-                    {contact.phone && (
+                    {!contact.email && contact.phone && (
                       <View style={styles.contactDetail}>
                         <Phone size={11} color="#475569" />
                         <Text style={styles.contactDetailText}>{contact.phone}</Text>
                       </View>
                     )}
                   </View>
-                </View>
+                  <ChevronDown size={16} color="#334155" style={{ transform: [{ rotate: '-90deg' }] }} />
+                </TouchableOpacity>
               ))}
             </View>
-          </View>
+          </CollapsibleSection>
         ))}
 
         {contacts.length === 0 && children.length === 0 && (
@@ -268,7 +362,7 @@ export default function ContactsScreen() {
           </View>
         )}
 
-        {filtered.length === 0 && search.trim() !== '' && (
+        {filteredContacts.length === 0 && filteredChildren.length === 0 && search.trim() !== '' && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No results</Text>
             <Text style={styles.emptyText}>Try a different name or email.</Text>
@@ -379,15 +473,6 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingBottom: 40 },
-  section: { marginBottom: 24 },
-  sectionLabelRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginBottom: 8, paddingHorizontal: 4,
-  },
-  sectionLabel: {
-    fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#64748b',
-    textTransform: 'uppercase', letterSpacing: 0.8,
-  },
   card: {
     backgroundColor: '#1e293b', borderRadius: 16,
     borderWidth: 1, borderColor: '#334155', overflow: 'hidden',
@@ -420,8 +505,6 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: 60 },
   emptyTitle: { fontFamily: 'Nunito-Bold', fontSize: 20, color: '#f1f5f9', marginTop: 16, marginBottom: 8 },
   emptyText: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b', textAlign: 'center', lineHeight: 22 },
-  emptyContacts: { paddingVertical: 20, alignItems: 'center' },
-  emptyContactsText: { fontFamily: 'Inter-Regular', fontSize: 13, color: '#334155' },
   modal: { flex: 1, backgroundColor: '#0f172a' },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
