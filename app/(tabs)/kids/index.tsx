@@ -17,7 +17,7 @@ import {
   UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Plus, Star, Users, Mail, Phone, X, ChevronDown } from 'lucide-react-native';
+import { Search, Plus, Star, Users, X, ChevronDown } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { router } from 'expo-router';
@@ -307,7 +307,7 @@ export default function ContactsScreen() {
           <CollapsibleSection
             key={label}
             label={label}
-            defaultOpen={label !== 'General Contacts'}
+            defaultOpen={false}
           >
             <View style={styles.card}>
               {group.map((contact, idx) => (
@@ -319,18 +319,6 @@ export default function ContactsScreen() {
                 >
                   <View style={styles.contactInfo}>
                     <Text style={styles.contactName}>{contact.name}</Text>
-                    {contact.email && (
-                      <View style={styles.contactDetail}>
-                        <Mail size={11} color="#475569" />
-                        <Text style={styles.contactDetailText} numberOfLines={1}>{contact.email}</Text>
-                      </View>
-                    )}
-                    {!contact.email && contact.phone && (
-                      <View style={styles.contactDetail}>
-                        <Phone size={11} color="#475569" />
-                        <Text style={styles.contactDetailText}>{contact.phone}</Text>
-                      </View>
-                    )}
                   </View>
                   <ChevronDown size={16} color="#334155" style={{ transform: [{ rotate: '-90deg' }] }} />
                 </TouchableOpacity>
@@ -479,8 +467,7 @@ const styles = StyleSheet.create({
   contactInfo: { flex: 1, marginRight: 8 },
   contactName: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: '#f1f5f9' },
   contactSub: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#64748b', marginTop: 2 },
-  contactDetail: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  contactDetailText: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#475569', flex: 1 },
+
   statPill: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: '#1a1a2e', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20,
