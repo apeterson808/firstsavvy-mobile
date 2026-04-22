@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,17 @@ import {
   RefreshControl,
   ActivityIndicator,
   Image,
+  Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Star, Music, Bed, Trash2, Smile, Gift, LogOut, Trophy, Sparkles, Plane, ShoppingBag, Heart, Zap, BookOpen, Utensils, Hop as Home } from 'lucide-react-native';
+import { Star, Music, Bed, Trash2, Smile, Gift, Trophy, Sparkles, Plane, ShoppingBag, Heart, Zap, BookOpen, Utensils, Hop as Home } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface Task {
   id: string;
@@ -60,10 +65,12 @@ export default function ChildHomeScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completions, setCompletions] = useState<TaskCompletion[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
-  const [childData, setChildData] = useState<{ child_name: string; avatar_url: string | null; stars_balance: number; cash_balance: string } | null>(null);
+  const [childData, setChildData] = useState<{ child_name: string; avatar_url: string | null; stars_balance: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
+  const [activePage, setActivePage] = useState(0);
+  const pagerRef = useRef<ScrollView>(null);
 
   const resolvedChildId = childId ?? activeChild?.id;
 
@@ -71,7 +78,6 @@ export default function ChildHomeScreen() {
 
   async function load() {
     if (!resolvedChildId) { setLoading(false); return; }
-
     const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     const res = await fetch(
@@ -79,7 +85,6 @@ export default function ChildHomeScreen() {
       { headers: { Authorization: `Bearer ${supabaseAnonKey}` } }
     );
     const json = await res.json();
-
     setChildData(json.child ?? null);
     setTasks(json.tasks ?? []);
     setCompletions(json.completions ?? []);
@@ -102,11 +107,7 @@ export default function ChildHomeScreen() {
         Authorization: `Bearer ${supabaseAnonKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        childId: resolvedChildId,
-        taskId,
-        starsEarned: task?.star_reward ?? 1,
-      }),
+      body: JSON.stringify({ childId: resolvedChildId, taskId, starsEarned: task?.star_reward ?? 1 }),
     });
     setSubmitting(null);
     load();
@@ -120,12 +121,20 @@ export default function ChildHomeScreen() {
     return 'none';
   }
 
+  function onPageScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    setActivePage(page);
+  }
+
+  function goToPage(page: number) {
+    pagerRef.current?.scrollTo({ x: page * SCREEN_WIDTH, animated: true });
+    setActivePage(page);
+  }
+
   const childName = childData?.child_name ?? activeChild?.child_name ?? 'Explorer';
   const firstName = childName.split(' ')[0];
   const stars = childData?.stars_balance ?? activeChild?.stars_balance ?? 0;
   const avatarUrl = childData?.avatar_url ?? null;
-  const pendingCount = tasks.filter(t => taskStatus(t.id) === 'pending').length;
-  const doneCount = tasks.filter(t => taskStatus(t.id) === 'done').length;
 
   if (loading) {
     return (
@@ -135,150 +144,188 @@ export default function ChildHomeScreen() {
     );
   }
 
+  const header = (
+    <View style={styles.header}>
+      <View style={styles.headerLeft}>
+        {avatarUrl ? (
+          <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatarFallback}>
+            <Text style={styles.avatarInitial}>{firstName[0]}</Text>
+          </View>
+        )}
+        <View style={styles.headerText}>
+          <Text style={styles.greeting}>Hi, {firstName}!</Text>
+          <Text style={styles.tagline}>Ready to earn some stars?</Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        onPress={() => {
+          setActiveChild(null);
+          if (profile) {
+            router.replace('/(tabs)/kids');
+          } else {
+            router.replace('/(auth)/login');
+          }
+        }}
+        style={styles.logoutBtn}
+      >
+        <Text style={styles.logoutText}>Log out</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const starsCard = (
+    <View style={styles.starsCard}>
+      <View style={styles.starsCardInner}>
+        <Star size={36} color="#f59e0b" fill="#f59e0b" />
+        <View>
+          <Text style={styles.starsLabel}>YOUR STARS</Text>
+          <Text style={styles.starsValue}>{stars}</Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  const pageDots = (
+    <View style={styles.pageDots}>
+      <TouchableOpacity onPress={() => goToPage(0)} style={styles.dotWrap}>
+        <View style={[styles.dot, activePage === 0 && styles.dotActive]} />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => goToPage(1)} style={styles.dotWrap}>
+        <View style={[styles.dot, activePage === 1 && styles.dotActive]} />
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.fixedTop}>
+        {header}
+        {starsCard}
+        {pageDots}
+      </View>
+
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#f59e0b" />}
+        ref={pagerRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={onPageScroll}
+        style={styles.pager}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarInitial}>{firstName[0]}</Text>
+        {/* Page 1: Tasks */}
+        <ScrollView
+          style={{ width: SCREEN_WIDTH }}
+          contentContainerStyle={styles.pageContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#f59e0b" />}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleWrap}>
+              <View style={styles.sectionIconWrap}>
+                <Trophy size={16} color="#fff" />
+              </View>
+              <Text style={styles.sectionTitle}>Your Tasks</Text>
+            </View>
+            {tasks.length > 0 && (
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{tasks.length} total</Text>
               </View>
             )}
-            <View style={styles.headerText}>
-              <Text style={styles.greeting}>Hi, {childName}!</Text>
-              <Text style={styles.tagline}>Ready to earn some stars?</Text>
-            </View>
           </View>
-          <TouchableOpacity
-            onPress={() => {
-              setActiveChild(null);
-              if (profile) {
-                router.replace('/(tabs)/kids');
-              } else {
-                router.replace('/(auth)/login');
-              }
-            }}
-            style={styles.logoutBtn}
-          >
-            <LogOut size={16} color="#94a3b8" />
-          </TouchableOpacity>
-        </View>
 
-        {/* Stars Card */}
-        <View style={styles.starsCard}>
-          <View style={styles.starsCardInner}>
-            <Star size={36} color="#f59e0b" fill="#f59e0b" />
-            <View style={styles.starsTextWrap}>
-              <Text style={styles.starsLabel}>YOUR STARS</Text>
-              <Text style={styles.starsValue}>{stars}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Tasks Section */}
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleWrap}>
-            <View style={styles.sectionIconWrap}>
-              <Trophy size={16} color="#fff" />
-            </View>
-            <Text style={styles.sectionTitle}>Your Tasks</Text>
-          </View>
-          {tasks.length > 0 && (
-            <View style={styles.countBadge}>
-              <Text style={styles.countBadgeText}>{tasks.length} total</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.taskList}>
-          {tasks.length === 0 && (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyText}>No tasks assigned yet!</Text>
-            </View>
-          )}
-          {tasks.map(task => {
-            const status = taskStatus(task.id);
-            return (
-              <TouchableOpacity
-                key={task.id}
-                style={[styles.taskCard, status !== 'none' && styles.taskCardDone]}
-                onPress={() => status === 'none' && markDone(task.id)}
-                disabled={status !== 'none' || submitting === task.id}
-                activeOpacity={0.75}
-              >
-                <TaskIcon name={task.icon} color={task.color} />
-                <Text style={[styles.taskTitle, status === 'done' && styles.taskTitleStrike]} numberOfLines={1}>
-                  {task.title}
-                </Text>
-                <View style={styles.taskRight}>
-                  {status === 'done' && (
-                    <View style={styles.doneBadge}>
-                      <Text style={styles.doneBadgeText}>Done!</Text>
-                    </View>
-                  )}
-                  {status === 'pending' && (
-                    <View style={styles.pendingBadge}>
-                      <Text style={styles.pendingBadgeText}>Waiting</Text>
-                    </View>
-                  )}
-                  {status === 'none' && (
-                    <View style={styles.starReward}>
-                      {submitting === task.id
-                        ? <ActivityIndicator size="small" color="#f59e0b" />
-                        : <>
-                            <Star size={14} color="#f59e0b" strokeWidth={1.5} />
-                            <Text style={styles.starRewardText}>{task.star_reward ?? 1}</Text>
-                          </>
-                      }
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Rewards Section */}
-        {rewards.length > 0 && (
-          <>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleWrap}>
-                <View style={[styles.sectionIconWrap, styles.rewardIconBg]}>
-                  <Sparkles size={16} color="#fff" />
-                </View>
-                <Text style={styles.sectionTitle}>Rewards</Text>
+          <View style={styles.taskList}>
+            {tasks.length === 0 && (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>No tasks assigned yet!</Text>
               </View>
+            )}
+            {tasks.map(task => {
+              const status = taskStatus(task.id);
+              return (
+                <TouchableOpacity
+                  key={task.id}
+                  style={[styles.taskCard, status !== 'none' && styles.taskCardDone]}
+                  onPress={() => status === 'none' && markDone(task.id)}
+                  disabled={status !== 'none' || submitting === task.id}
+                  activeOpacity={0.75}
+                >
+                  <TaskIcon name={task.icon} color={task.color} />
+                  <Text style={[styles.taskTitle, status === 'done' && styles.taskTitleStrike]} numberOfLines={1}>
+                    {task.title}
+                  </Text>
+                  <View style={styles.taskRight}>
+                    {status === 'done' && (
+                      <View style={styles.doneBadge}>
+                        <Text style={styles.doneBadgeText}>Done!</Text>
+                      </View>
+                    )}
+                    {status === 'pending' && (
+                      <View style={styles.pendingBadge}>
+                        <Text style={styles.pendingBadgeText}>Waiting</Text>
+                      </View>
+                    )}
+                    {status === 'none' && (
+                      <View style={styles.starReward}>
+                        {submitting === task.id
+                          ? <ActivityIndicator size="small" color="#f59e0b" />
+                          : <>
+                              <Star size={14} color="#f59e0b" strokeWidth={1.5} />
+                              <Text style={styles.starRewardText}>{task.star_reward ?? 1}</Text>
+                            </>
+                        }
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
+
+        {/* Page 2: Rewards */}
+        <ScrollView
+          style={{ width: SCREEN_WIDTH }}
+          contentContainerStyle={styles.pageContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleWrap}>
+              <View style={[styles.sectionIconWrap, styles.rewardIconBg]}>
+                <Sparkles size={16} color="#fff" />
+              </View>
+              <Text style={styles.sectionTitle}>Rewards</Text>
+            </View>
+            {rewards.length > 0 && (
               <View style={[styles.countBadge, styles.rewardCountBadge]}>
                 <Text style={styles.countBadgeText}>{rewards.length} available</Text>
               </View>
-            </View>
+            )}
+          </View>
 
-            <View style={styles.taskList}>
-              {rewards.map(reward => (
-                <View key={reward.id} style={styles.taskCard}>
-                  {reward.image_url ? (
-                    <Image source={{ uri: reward.image_url }} style={styles.rewardThumb} />
-                  ) : (
-                    <TaskIcon name={reward.icon} color={reward.color} />
-                  )}
-                  <Text style={styles.taskTitle} numberOfLines={1}>{reward.title}</Text>
-                  <View style={styles.starReward}>
-                    <Star size={14} color="#f59e0b" strokeWidth={1.5} />
-                    <Text style={styles.starRewardText}>{reward.star_cost ?? '?'}</Text>
-                  </View>
+          <View style={styles.taskList}>
+            {rewards.length === 0 && (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>No rewards yet!</Text>
+              </View>
+            )}
+            {rewards.map(reward => (
+              <View key={reward.id} style={styles.taskCard}>
+                {reward.image_url ? (
+                  <Image source={{ uri: reward.image_url }} style={styles.rewardThumb} />
+                ) : (
+                  <TaskIcon name={reward.icon} color={reward.color} />
+                )}
+                <Text style={styles.taskTitle} numberOfLines={1}>{reward.title}</Text>
+                <View style={styles.starReward}>
+                  <Star size={14} color="#f59e0b" strokeWidth={1.5} />
+                  <Text style={styles.starRewardText}>{reward.star_cost ?? '?'}</Text>
                 </View>
-              ))}
-            </View>
-          </>
-        )}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
       </ScrollView>
     </SafeAreaView>
   );
@@ -286,14 +333,14 @@ export default function ChildHomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0d1117' },
-  scroll: { flex: 1 },
-  content: { padding: 16, paddingBottom: 48 },
   loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d1117' },
+
+  fixedTop: { paddingHorizontal: 16, paddingTop: 4 },
 
   // Header
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: 20, paddingTop: 4,
+    marginBottom: 16,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   avatar: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: '#f59e0b' },
@@ -306,54 +353,53 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   greeting: { fontFamily: 'Nunito-ExtraBold', fontSize: 20, color: '#f1f5f9', lineHeight: 26 },
   tagline: { fontFamily: 'Inter-Regular', fontSize: 13, color: '#64748b', marginTop: 1 },
-  logoutBtn: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: '#1e293b', justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: '#334155',
-  },
+  logoutBtn: { paddingVertical: 6, paddingHorizontal: 4 },
+  logoutText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#64748b' },
 
   // Stars card
   starsCard: {
-    borderRadius: 18,
-    marginBottom: 24,
-    overflow: 'hidden',
-    backgroundColor: '#1a1200',
-    borderWidth: 1,
-    borderColor: '#f59e0b40',
+    borderRadius: 18, marginBottom: 14, overflow: 'hidden',
+    backgroundColor: '#1a1200', borderWidth: 1, borderColor: '#f59e0b40',
   },
   starsCardInner: {
     flexDirection: 'row', alignItems: 'center', gap: 16,
-    padding: 20,
-    backgroundColor: 'rgba(245,158,11,0.08)',
+    padding: 20, backgroundColor: 'rgba(245,158,11,0.08)',
   },
-  starsTextWrap: {},
   starsLabel: {
     fontFamily: 'Inter-SemiBold', fontSize: 10, color: '#f59e0b',
     letterSpacing: 1.5, textTransform: 'uppercase',
   },
   starsValue: { fontFamily: 'Nunito-ExtraBold', fontSize: 44, color: '#f59e0b', lineHeight: 52 },
 
+  // Page dots
+  pageDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginBottom: 14 },
+  dotWrap: { padding: 4 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#334155' },
+  dotActive: { backgroundColor: '#f59e0b', width: 24 },
+
+  // Pager
+  pager: { flex: 1 },
+  pageContent: { paddingHorizontal: 16, paddingBottom: 48, paddingTop: 4 },
+
   // Section headers
   sectionHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10,
   },
   sectionTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionIconWrap: {
     width: 28, height: 28, borderRadius: 8, backgroundColor: '#2563eb',
     justifyContent: 'center', alignItems: 'center',
   },
-  rewardIconBg: { backgroundColor: '#7c3aed' },
+  rewardIconBg: { backgroundColor: '#0d6b3e' },
   sectionTitle: { fontFamily: 'Nunito-ExtraBold', fontSize: 18, color: '#f1f5f9' },
   countBadge: {
-    backgroundColor: '#1e3a5f', paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 20,
+    backgroundColor: '#1e3a5f', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
   },
-  rewardCountBadge: { backgroundColor: '#2e1065' },
+  rewardCountBadge: { backgroundColor: '#052e16' },
   countBadgeText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#60a5fa' },
 
   // Task list
-  taskList: { marginBottom: 24, gap: 8 },
+  taskList: { gap: 8 },
   taskCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#131c2e', borderRadius: 14,
@@ -379,10 +425,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1c1a0e', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
   },
   pendingBadgeText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#f59e0b' },
-
-  // Reward thumb
   rewardThumb: { width: 42, height: 42, borderRadius: 10 },
-
   emptyCard: {
     backgroundColor: '#131c2e', borderRadius: 14, padding: 24,
     alignItems: 'center', borderWidth: 1, borderColor: '#1e293b',
