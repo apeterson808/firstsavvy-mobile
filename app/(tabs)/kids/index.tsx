@@ -307,7 +307,7 @@ export default function ContactsScreen() {
           <CollapsibleSection
             key={label}
             label={label}
-            defaultOpen={false}
+            defaultOpen={true}
           >
             <View style={styles.card}>
               {group.map((contact, idx) => (
