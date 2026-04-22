@@ -365,10 +365,12 @@ export default function ChildDetailScreen() {
       >
         {/* Profile card */}
         <LinearGradient colors={['#1e3a5f', '#0f172a']} style={styles.profileCard}>
-          <View style={styles.starsBadge}>
-            <Star size={13} color="#fbbf24" fill="#fbbf24" />
-            <Text style={styles.starsBadgeText}>{child.stars_balance ?? 0}</Text>
-          </View>
+          {child.family_role !== 'spouse_partner' && (
+            <View style={styles.starsBadge}>
+              <Star size={13} color="#fbbf24" fill="#fbbf24" />
+              <Text style={styles.starsBadgeText}>{child.stars_balance ?? 0}</Text>
+            </View>
+          )}
           {child.avatar_url ? (
             <Image source={{ uri: child.avatar_url }} style={styles.avatarImg} />
           ) : (
@@ -378,19 +380,37 @@ export default function ChildDetailScreen() {
           )}
           <Text style={styles.profileName}>{name}</Text>
           <View style={styles.profileMeta}>
-            {levelName && (
-              <View style={styles.levelChip}>
-                <Text style={styles.levelChipText}>{levelName}</Text>
+            {child.family_role === 'spouse_partner' ? (
+              <View style={[styles.levelChip, styles.partnerChip]}>
+                <Text style={[styles.levelChipText, styles.partnerChipText]}>Partner</Text>
               </View>
-            )}
-            {childAge !== null && (
-              <Text style={styles.ageText}>Age {childAge}</Text>
+            ) : (
+              <>
+                {levelName && (
+                  <View style={styles.levelChip}>
+                    <Text style={styles.levelChipText}>{levelName}</Text>
+                  </View>
+                )}
+                {childAge !== null && (
+                  <Text style={styles.ageText}>Age {childAge}</Text>
+                )}
+              </>
             )}
           </View>
         </LinearGradient>
 
+        {/* Partner info card — shown instead of child tabs */}
+        {child.family_role === 'spouse_partner' && (
+          <View style={styles.partnerCard}>
+            <Text style={styles.partnerCardTitle}>Shared Finance Partner</Text>
+            <Text style={styles.partnerCardDesc}>
+              {name} is set up as a financial partner with shared access to family accounts and transactions.
+            </Text>
+          </View>
+        )}
+
         {/* Pending approvals banner */}
-        {pendingApprovals.length > 0 && (
+        {child.family_role !== 'spouse_partner' && pendingApprovals.length > 0 && (
           <View style={styles.approvalBanner}>
             <View style={styles.approvalBannerHeader}>
               <Clock size={15} color="#fbbf24" />
@@ -437,8 +457,8 @@ export default function ChildDetailScreen() {
           </View>
         )}
 
-        {/* Tabs */}
-        <View style={styles.tabsCard}>
+        {/* Tabs — children only */}
+        {child.family_role !== 'spouse_partner' && <View style={styles.tabsCard}>
           <View
             style={styles.tabBar}
             onLayout={e => { tabBarWidth.current = e.nativeEvent.layout.width; }}
@@ -618,7 +638,7 @@ export default function ChildDetailScreen() {
               })}
             </View>
           )}
-        </View>
+        </View>}
       </ScrollView>
     </SafeAreaView>
   );
@@ -671,7 +691,16 @@ const styles = StyleSheet.create({
     borderRadius: 20, borderWidth: 1, borderColor: '#16a34a',
   },
   levelChipText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#4ade80' },
+  partnerChip: { backgroundColor: '#1e3a5f', borderColor: '#3b82f6' },
+  partnerChipText: { color: '#93c5fd' },
   ageText: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b' },
+
+  partnerCard: {
+    backgroundColor: '#1e293b', borderRadius: 16, borderWidth: 1, borderColor: '#334155',
+    padding: 20, marginBottom: 16,
+  },
+  partnerCardTitle: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: '#f1f5f9', marginBottom: 6 },
+  partnerCardDesc: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b', lineHeight: 22 },
 
   // Approval banner
   approvalBanner: {

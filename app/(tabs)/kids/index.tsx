@@ -39,6 +39,7 @@ interface ChildProfile {
   cash_balance: number;
   current_permission_level: number;
   avatar_url: string | null;
+  family_role: string | null;
 }
 
 interface PermissionLevel {
@@ -89,7 +90,7 @@ export default function ContactsScreen() {
         .order('name'),
       supabase
         .from('child_profiles')
-        .select('id, child_name, first_name, display_name, stars_balance, cash_balance, current_permission_level, avatar_url')
+        .select('id, child_name, first_name, display_name, stars_balance, cash_balance, current_permission_level, avatar_url, family_role')
         .eq('parent_profile_id', profile.id)
         .eq('is_active', true),
       supabase
@@ -208,13 +209,17 @@ export default function ContactsScreen() {
                   <View style={styles.contactInfo}>
                     <Text style={styles.contactName}>{childDisplayName(child)}</Text>
                     <Text style={styles.contactSub}>
-                      {levelNames[child.current_permission_level] ?? `Level ${child.current_permission_level}`}
+                      {child.family_role === 'spouse_partner'
+                        ? 'Partner'
+                        : levelNames[child.current_permission_level] ?? `Level ${child.current_permission_level}`}
                     </Text>
                   </View>
-                  <View style={styles.statPill}>
-                    <Star size={11} color="#fbbf24" fill="#fbbf24" />
-                    <Text style={styles.statPillText}>{child.stars_balance ?? 0}</Text>
-                  </View>
+                  {child.family_role !== 'spouse_partner' && (
+                    <View style={styles.statPill}>
+                      <Star size={11} color="#fbbf24" fill="#fbbf24" />
+                      <Text style={styles.statPillText}>{child.stars_balance ?? 0}</Text>
+                    </View>
+                  )}
                   <ChevronRight size={16} color="#334155" />
                 </TouchableOpacity>
               ))}
