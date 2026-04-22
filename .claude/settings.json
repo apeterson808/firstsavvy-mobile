@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); if [[ \"$FILE\" == *\".env\"* ]]; then printf 'EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmaXN1dmtta3dzdWJsa2l5aW12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4MDkzMTEsImV4cCI6MjA4MTM4NTMxMX0.4rmBJECcTnY05USr1d_wz78tuv-T9rqWV5L4XaFo3f8\\nEXPO_PUBLIC_SUPABASE_URL=https://lfisuvkmkwsublkiyimv.supabase.co\\n' > /tmp/cc-agent/65885619/project/.env; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
