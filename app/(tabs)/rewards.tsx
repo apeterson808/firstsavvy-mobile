@@ -4,67 +4,130 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Gift, Star, CircleCheck as CheckCircle } from 'lucide-react-native';
+import { PieChart } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
-interface Reward {
+interface BudgetItem {
   id: string;
-  title: string;
-  description: string | null;
-  category: string | null;
-  image_url: string | null;
-  is_active: boolean;
-  expires_at: string | null;
-  redeemed_at: string | null;
+  name: string;
+  account_type: string | null;
+  allocated: number;
+  spent: number;
+  rollover_enabled: boolean;
+  accumulated_rollover: number;
 }
 
-interface Redemption {
-  id: string;
-  reward_id: string;
-  points_spent: number;
-  status: string;
-  requested_at: string;
+const TYPE_GROUP_LABELS: Record<string, string> = {
+  earned_income: 'Income',
+  fixed_expenses: 'Fixed Expenses',
+  variable_expenses: 'Variable Expenses',
+  discretionary_expenses: 'Discretionary',
+  savings: 'Savings',
+};
+
+const GROUP_ORDER = [
+  'earned_income',
+  'fixed_expenses',
+  'variable_expenses',
+  'discretionary_expenses',
+  'savings',
+  'other',
+];
+
+function pct(spent: number, allocated: number): number {
+  if (allocated <= 0) return 0;
+  return Math.min(spent / allocated, 1);
 }
 
-export default function RewardsScreen() {
+function barColor(ratio: number, isIncome: boolean): string {
+  if (isIncome) return '#22c55e';
+  if (ratio >= 1) return '#ef4444';
+  if (ratio >= 0.8) return '#f59e0b';
+  return '#3b82f6';
+}
+
+export default function BudgetScreen() {
   const { profile } = useAuth();
-  const [rewards, setRewards] = useState<Reward[]>([]);
-  const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+  const [items, setItems] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [tab, setTab] = useState<'active' | 'redeemed'>('active');
+  const [month] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
 
   useEffect(() => { load(); }, [profile]);
 
   async function load() {
     if (!profile) return;
-    const [rewardRes, redemptionRes] = await Promise.all([
+
+    const startDate = `${month.year}-${String(month.month).padStart(2, '0')}-01`;
+    const endMonth = month.month === 12 ? 1 : month.month + 1;
+    const endYear = month.month === 12 ? month.year + 1 : month.year;
+    const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
+
+    const [budgetRes, txRes] = await Promise.all([
       supabase
-        .from('rewards')
-        .select('id, title, description, category, image_url, is_active, expires_at, redeemed_at')
+        .from('budgets')
+        .select('id, custom_name, allocated_amount, cadence, rollover_enabled, accumulated_rollover, chart_account_id, user_chart_of_accounts(display_name, account_type)')
         .eq('profile_id', profile.id)
-        .order('created_at', { ascending: false }),
+        .eq('is_active', true)
+        .order('order', { ascending: true }),
       supabase
-        .from('reward_redemptions')
-        .select('id, reward_id, points_spent, status, requested_at')
-        .order('requested_at', { ascending: false })
-        .limit(20),
+        .from('transactions')
+        .select('amount, type, category_account_id')
+        .eq('profile_id', profile.id)
+        .gte('date', startDate)
+        .lt('date', endDate),
     ]);
-    setRewards(rewardRes.data ?? []);
-    setRedemptions(redemptionRes.data ?? []);
+
+    const spendByCategory: Record<string, number> = {};
+    for (const tx of txRes.data ?? []) {
+      if (!tx.category_account_id) continue;
+      spendByCategory[tx.category_account_id] =
+        (spendByCategory[tx.category_account_id] ?? 0) + Math.abs(tx.amount);
+    }
+
+    const mapped: BudgetItem[] = (budgetRes.data ?? []).map((b: any) => {
+      const acct = b.user_chart_of_accounts;
+      return {
+        id: b.id,
+        name: b.custom_name || acct?.display_name || 'Unnamed',
+        account_type: acct?.account_type ?? null,
+        allocated: parseFloat(b.allocated_amount) || 0,
+        spent: spendByCategory[b.chart_account_id] ?? 0,
+        rollover_enabled: b.rollover_enabled,
+        accumulated_rollover: parseFloat(b.accumulated_rollover) || 0,
+      };
+    });
+
+    setItems(mapped);
     setLoading(false);
     setRefreshing(false);
   }
 
-  const activeRewards = rewards.filter(r => r.is_active && !r.redeemed_at);
-  const redeemedRewards = rewards.filter(r => r.redeemed_at);
+  const grouped = GROUP_ORDER.reduce<Record<string, BudgetItem[]>>((acc, key) => {
+    const group = items.filter(i => (i.account_type ?? 'other') === key);
+    if (group.length > 0) acc[key] = group;
+    return acc;
+  }, {});
+
+  const totalAllocated = items.reduce((s, i) => {
+    if (i.account_type === 'earned_income') return s;
+    return s + i.allocated;
+  }, 0);
+  const totalSpent = items.reduce((s, i) => {
+    if (i.account_type === 'earned_income') return s;
+    return s + i.spent;
+  }, 0);
+  const totalIncome = items.filter(i => i.account_type === 'earned_income').reduce((s, i) => s + i.allocated, 0);
+
+  const monthLabel = new Date(month.year, month.month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   if (loading) {
     return (
@@ -81,117 +144,103 @@ export default function RewardsScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#60a5fa" />}
       >
-        <Text style={styles.pageTitle}>Rewards</Text>
-        <Text style={styles.pageSubtitle}>Manage rewards for your kids to earn</Text>
+        <Text style={styles.pageTitle}>Budget</Text>
+        <Text style={styles.monthLabel}>{monthLabel}</Text>
 
-        {/* Tabs */}
-        <View style={styles.tabRow}>
-          <TouchableOpacity
-            style={[styles.tabBtn, tab === 'active' && styles.tabBtnActive]}
-            onPress={() => setTab('active')}
-          >
-            <Text style={[styles.tabText, tab === 'active' && styles.tabTextActive]}>
-              Active ({activeRewards.length})
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabBtn, tab === 'redeemed' && styles.tabBtnActive]}
-            onPress={() => setTab('redeemed')}
-          >
-            <Text style={[styles.tabText, tab === 'redeemed' && styles.tabTextActive]}>
-              Redeemed ({redeemedRewards.length})
-            </Text>
-          </TouchableOpacity>
+        {/* Summary card */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryStat}>
+              <Text style={styles.summaryValue}>
+                ${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </Text>
+              <Text style={styles.summaryLabel}>Income</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryStat}>
+              <Text style={styles.summaryValue}>
+                ${totalAllocated.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </Text>
+              <Text style={styles.summaryLabel}>Budgeted</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryStat}>
+              <Text style={[styles.summaryValue, totalSpent > totalAllocated && styles.overBudget]}>
+                ${totalSpent.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </Text>
+              <Text style={styles.summaryLabel}>Spent</Text>
+            </View>
+          </View>
+
+          {/* Overall progress bar */}
+          <View style={styles.overallBarTrack}>
+            <View
+              style={[
+                styles.overallBarFill,
+                {
+                  width: `${Math.min(pct(totalSpent, totalAllocated) * 100, 100)}%` as any,
+                  backgroundColor: barColor(pct(totalSpent, totalAllocated), false),
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.overallBarLabel}>
+            ${(totalAllocated - totalSpent).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} remaining
+          </Text>
         </View>
 
-        {/* Active Rewards */}
-        {tab === 'active' && (
-          <>
-            {activeRewards.length === 0 && (
-              <View style={styles.emptyState}>
-                <Gift size={48} color="#334155" />
-                <Text style={styles.emptyTitle}>No Active Rewards</Text>
-                <Text style={styles.emptyText}>Create rewards in the Savvy web app for your kids to earn.</Text>
-              </View>
-            )}
-            {activeRewards.map(reward => (
-              <View key={reward.id} style={styles.rewardCard}>
-                {reward.image_url ? (
-                  <Image source={{ uri: reward.image_url }} style={styles.rewardImage} />
-                ) : (
-                  <View style={styles.rewardImagePlaceholder}>
-                    <Gift size={28} color="#475569" />
-                  </View>
-                )}
-                <View style={styles.rewardInfo}>
-                  <Text style={styles.rewardTitle}>{reward.title}</Text>
-                  {reward.description && (
-                    <Text style={styles.rewardDesc} numberOfLines={2}>{reward.description}</Text>
-                  )}
-                  {reward.category && (
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryText}>{reward.category}</Text>
+        {/* Groups */}
+        {Object.entries(grouped).map(([type, groupItems]) => (
+          <View key={type} style={styles.group}>
+            <Text style={styles.groupLabel}>
+              {TYPE_GROUP_LABELS[type] ?? 'Other'}
+            </Text>
+            <View style={styles.groupCard}>
+              {groupItems.map((item, idx) => {
+                const ratio = pct(item.spent, item.allocated);
+                const isIncome = item.account_type === 'earned_income';
+                const color = barColor(ratio, isIncome);
+                const remaining = item.allocated - item.spent;
+
+                return (
+                  <View key={item.id} style={[styles.budgetRow, idx > 0 && styles.budgetBorder]}>
+                    <View style={styles.budgetTop}>
+                      <Text style={styles.budgetName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={[styles.budgetAmounts, remaining < 0 && styles.overBudget]}>
+                        ${item.spent.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        <Text style={styles.budgetAllocated}>
+                          {' '}/ ${item.allocated.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </Text>
+                      </Text>
                     </View>
-                  )}
-                  {reward.expires_at && (
-                    <Text style={styles.expiresText}>
-                      Expires {new Date(reward.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    <View style={styles.barTrack}>
+                      <View
+                        style={[
+                          styles.barFill,
+                          {
+                            width: `${ratio * 100}%` as any,
+                            backgroundColor: color,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.budgetRemaining, remaining < 0 && styles.overBudget]}>
+                      {remaining >= 0
+                        ? `$${remaining.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} left`
+                        : `$${Math.abs(remaining).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} over`}
                     </Text>
-                  )}
-                </View>
-              </View>
-            ))}
-          </>
-        )}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ))}
 
-        {/* Redeemed Rewards */}
-        {tab === 'redeemed' && (
-          <>
-            {redeemedRewards.length === 0 && (
-              <View style={styles.emptyState}>
-                <CheckCircle size={48} color="#334155" />
-                <Text style={styles.emptyTitle}>No Redeemed Rewards</Text>
-                <Text style={styles.emptyText}>Rewards your kids redeem will appear here.</Text>
-              </View>
-            )}
-            {redeemedRewards.map(reward => (
-              <View key={reward.id} style={[styles.rewardCard, styles.redeemedCard]}>
-                <View style={styles.rewardImagePlaceholder}>
-                  <CheckCircle size={28} color="#4ade80" />
-                </View>
-                <View style={styles.rewardInfo}>
-                  <Text style={styles.rewardTitle}>{reward.title}</Text>
-                  <Text style={styles.redeemedDate}>
-                    Redeemed {new Date(reward.redeemed_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </>
-        )}
-
-        {/* Recent Redemptions */}
-        {redemptions.length > 0 && tab === 'active' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Redemptions</Text>
-            {redemptions.slice(0, 5).map(r => (
-              <View key={r.id} style={styles.redemptionRow}>
-                <View style={styles.redemptionIcon}>
-                  <Star size={14} color="#fbbf24" fill="#fbbf24" />
-                </View>
-                <View style={styles.redemptionInfo}>
-                  <Text style={styles.redemptionPoints}>{r.points_spent} stars spent</Text>
-                  <Text style={styles.redemptionDate}>
-                    {new Date(r.requested_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </Text>
-                </View>
-                <View style={[styles.redemptionStatus, r.status === 'fulfilled' && styles.statusFulfilled]}>
-                  <Text style={[styles.redemptionStatusText, r.status === 'fulfilled' && styles.statusFulfilledText]}>
-                    {r.status}
-                  </Text>
-                </View>
-              </View>
-            ))}
+        {items.length === 0 && (
+          <View style={styles.emptyState}>
+            <PieChart size={48} color="#334155" />
+            <Text style={styles.emptyTitle}>No Budgets Yet</Text>
+            <Text style={styles.emptyText}>Set up budgets in the Savvy web app to track your spending here.</Text>
           </View>
         )}
       </ScrollView>
@@ -205,58 +254,63 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40 },
   loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' },
   pageTitle: { fontFamily: 'Nunito-ExtraBold', fontSize: 28, color: '#f1f5f9' },
-  pageSubtitle: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b', marginBottom: 20, marginTop: 4 },
-  tabRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  tabBtn: {
-    flex: 1, paddingVertical: 10, alignItems: 'center',
-    borderRadius: 10, backgroundColor: '#1e293b',
-    borderWidth: 1, borderColor: '#334155',
+  monthLabel: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b', marginTop: 2, marginBottom: 20 },
+  summaryCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
-  tabBtnActive: { backgroundColor: '#1e3a5f', borderColor: '#2563eb' },
-  tabText: { fontFamily: 'Inter-Medium', fontSize: 13, color: '#64748b' },
-  tabTextActive: { color: '#60a5fa' },
-  rewardCard: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    backgroundColor: '#1e293b', borderRadius: 14, padding: 14,
-    marginBottom: 10, borderWidth: 1, borderColor: '#334155',
+  summaryRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  summaryStat: { flex: 1, alignItems: 'center' },
+  summaryValue: { fontFamily: 'Nunito-ExtraBold', fontSize: 22, color: '#f1f5f9' },
+  summaryLabel: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#64748b', marginTop: 2 },
+  summaryDivider: { width: 1, height: 40, backgroundColor: '#334155' },
+  overallBarTrack: {
+    height: 8,
+    backgroundColor: '#0f172a',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
   },
-  redeemedCard: { opacity: 0.7 },
-  rewardImage: { width: 64, height: 64, borderRadius: 10, marginRight: 14 },
-  rewardImagePlaceholder: {
-    width: 64, height: 64, borderRadius: 10, backgroundColor: '#0f172a',
-    justifyContent: 'center', alignItems: 'center', marginRight: 14,
+  overallBarFill: { height: 8, borderRadius: 4 },
+  overallBarLabel: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#64748b', textAlign: 'right' },
+  group: { marginBottom: 20 },
+  groupLabel: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 12,
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
-  rewardInfo: { flex: 1 },
-  rewardTitle: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: '#f1f5f9' },
-  rewardDesc: { fontFamily: 'Inter-Regular', fontSize: 13, color: '#94a3b8', marginTop: 4, lineHeight: 18 },
-  categoryBadge: {
-    alignSelf: 'flex-start', backgroundColor: '#0f172a',
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, marginTop: 6,
+  groupCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
-  categoryText: { fontFamily: 'Inter-Medium', fontSize: 11, color: '#64748b', textTransform: 'capitalize' },
-  expiresText: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#f59e0b', marginTop: 4 },
-  redeemedDate: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#4ade80', marginTop: 4 },
-  section: {
-    backgroundColor: '#1e293b', borderRadius: 16, padding: 16,
-    marginTop: 8, borderWidth: 1, borderColor: '#334155',
+  budgetRow: { paddingVertical: 14 },
+  budgetBorder: { borderTopWidth: 1, borderTopColor: '#0f172a' },
+  budgetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  budgetName: { fontFamily: 'Inter-Medium', fontSize: 14, color: '#cbd5e1', flex: 1, marginRight: 8 },
+  budgetAmounts: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#f1f5f9' },
+  budgetAllocated: { fontFamily: 'Inter-Regular', fontSize: 13, color: '#475569' },
+  barTrack: {
+    height: 6,
+    backgroundColor: '#0f172a',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 5,
   },
-  sectionTitle: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: '#f1f5f9', marginBottom: 12 },
-  redemptionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#0f172a' },
-  redemptionIcon: {
-    width: 32, height: 32, borderRadius: 8, backgroundColor: '#1c1a0e',
-    justifyContent: 'center', alignItems: 'center', marginRight: 12,
-  },
-  redemptionInfo: { flex: 1 },
-  redemptionPoints: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#f1f5f9' },
-  redemptionDate: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#64748b', marginTop: 2 },
-  redemptionStatus: {
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: '#1e293b',
-    borderWidth: 1, borderColor: '#334155',
-  },
-  statusFulfilled: { backgroundColor: '#052e16', borderColor: '#16a34a' },
-  redemptionStatusText: { fontFamily: 'Inter-Medium', fontSize: 11, color: '#64748b', textTransform: 'capitalize' },
-  statusFulfilledText: { color: '#4ade80' },
-  emptyState: { alignItems: 'center', padding: 48 },
+  barFill: { height: 6, borderRadius: 3 },
+  budgetRemaining: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#64748b', textAlign: 'right' },
+  overBudget: { color: '#ef4444' },
+  emptyState: { alignItems: 'center', padding: 60 },
   emptyTitle: { fontFamily: 'Nunito-Bold', fontSize: 20, color: '#f1f5f9', marginTop: 16, marginBottom: 8 },
   emptyText: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b', textAlign: 'center', lineHeight: 22 },
 });

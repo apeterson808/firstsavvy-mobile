@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
-import { LayoutDashboard, CreditCard, ArrowLeftRight, Users, Gift } from 'lucide-react-native';
+import { LayoutDashboard, CreditCard, ArrowLeftRight, Users, ChartPie as PieChart } from 'lucide-react-native';
 
 export default function TabsLayout() {
   return (
@@ -44,8 +44,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="rewards"
         options={{
-          title: 'Rewards',
-          tabBarIcon: ({ color, size }) => <Gift color={color} size={size - 2} />,
+          title: 'Budget',
+          tabBarIcon: ({ color, size }) => <PieChart color={color} size={size - 2} />,
         }}
       />
     </Tabs>
