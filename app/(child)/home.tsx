@@ -11,11 +11,12 @@ import {
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Star, Music, Bed, Trash2, Smile, Gift, Trophy, Sparkles, Plane, ShoppingBag, Heart, Zap, BookOpen, Utensils, Hop as Home } from 'lucide-react-native';
-import { supabase } from '@/lib/supabase';
+import { Star, Music, Bed, Trash2, Smile, Gift, Trophy, Sparkles, Plane, ShoppingBag, Heart, Zap, BookOpen, Utensils, Hop as Home, CircleCheck, X } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -49,12 +50,12 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
   Heart, Zap, BookOpen, Utensils, Home, Trophy, Sparkles,
 };
 
-function TaskIcon({ name, color }: { name: string | null; color: string | null }) {
+function TaskIcon({ name, color, size = 20 }: { name: string | null; color: string | null; size?: number }) {
   const bg = color ?? '#60a5fa';
   const IconComp = name ? (ICON_MAP[name] ?? Star) : Star;
   return (
     <View style={[styles.taskIconWrap, { backgroundColor: bg + '25', borderColor: bg + '40' }]}>
-      <IconComp size={20} color={bg} strokeWidth={2} />
+      <IconComp size={size} color={bg} strokeWidth={2} />
     </View>
   );
 }
@@ -70,6 +71,7 @@ export default function ChildHomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [activePage, setActivePage] = useState(0);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const pagerRef = useRef<ScrollView>(null);
 
   const resolvedChildId = childId ?? activeChild?.id;
@@ -93,12 +95,9 @@ export default function ChildHomeScreen() {
     setRefreshing(false);
   }
 
-  async function markDone(taskId: string) {
-    if (!resolvedChildId) return;
-    const existing = completions.find(c => c.task_id === taskId && c.status !== 'rejected');
-    if (existing) return;
-    setSubmitting(taskId);
-    const task = tasks.find(t => t.id === taskId);
+  async function submitCompletion() {
+    if (!resolvedChildId || !selectedTask) return;
+    setSubmitting(selectedTask.id);
     const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     await fetch(`${supabaseUrl}/functions/v1/get-child-data`, {
@@ -107,9 +106,10 @@ export default function ChildHomeScreen() {
         Authorization: `Bearer ${supabaseAnonKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ childId: resolvedChildId, taskId, starsEarned: task?.star_reward ?? 1 }),
+      body: JSON.stringify({ childId: resolvedChildId, taskId: selectedTask.id, starsEarned: selectedTask.star_reward ?? 1 }),
     });
     setSubmitting(null);
+    setSelectedTask(null);
     load();
   }
 
@@ -144,68 +144,63 @@ export default function ChildHomeScreen() {
     );
   }
 
-  const header = (
-    <View style={styles.header}>
-      <View style={styles.headerLeft}>
-        {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarFallback}>
-            <Text style={styles.avatarInitial}>{firstName[0]}</Text>
-          </View>
-        )}
-        <View style={styles.headerText}>
-          <Text style={styles.greeting}>Hi, {firstName}!</Text>
-          <Text style={styles.tagline}>Ready to earn some stars?</Text>
-        </View>
-      </View>
-      <TouchableOpacity
-        onPress={() => {
-          setActiveChild(null);
-          if (profile) {
-            router.replace('/(tabs)/kids');
-          } else {
-            router.replace('/(auth)/login');
-          }
-        }}
-        style={styles.logoutBtn}
-      >
-        <Text style={styles.logoutText}>Log out</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const starsCard = (
-    <View style={styles.starsCard}>
-      <View style={styles.starsCardInner}>
-        <Star size={36} color="#f59e0b" fill="#f59e0b" />
-        <View>
-          <Text style={styles.starsLabel}>YOUR STARS</Text>
-          <Text style={styles.starsValue}>{stars}</Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const pageDots = (
-    <View style={styles.pageDots}>
-      <TouchableOpacity onPress={() => goToPage(0)} style={styles.dotWrap}>
-        <View style={[styles.dot, activePage === 0 && styles.dotActive]} />
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => goToPage(1)} style={styles.dotWrap}>
-        <View style={[styles.dot, activePage === 1 && styles.dotActive]} />
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      {/* Fixed top section */}
       <View style={styles.fixedTop}>
-        {header}
-        {starsCard}
-        {pageDots}
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarInitial}>{firstName[0]}</Text>
+              </View>
+            )}
+            <View style={styles.headerText}>
+              <Text style={styles.greeting}>Hi, {firstName}!</Text>
+              <Text style={styles.tagline}>Ready to earn some stars?</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              setActiveChild(null);
+              if (profile) {
+                router.replace('/(tabs)/kids');
+              } else {
+                router.replace('/(auth)/login');
+              }
+            }}
+            style={styles.logoutBtn}
+          >
+            <Text style={styles.logoutText}>Log out</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Stars card */}
+        <View style={styles.starsCard}>
+          <View style={styles.starsCardInner}>
+            <Star size={36} color="#f59e0b" fill="#f59e0b" />
+            <View>
+              <Text style={styles.starsLabel}>YOUR STARS</Text>
+              <Text style={styles.starsValue}>{stars}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Page dots */}
+        <View style={styles.pageDots}>
+          <TouchableOpacity onPress={() => goToPage(0)} style={styles.dotWrap}>
+            <View style={[styles.dot, activePage === 0 && styles.dotActive]} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => goToPage(1)} style={styles.dotWrap}>
+            <View style={[styles.dot, activePage === 1 && styles.dotActive]} />
+          </TouchableOpacity>
+        </View>
       </View>
 
+      {/* Horizontal pager */}
       <ScrollView
         ref={pagerRef}
         horizontal
@@ -247,8 +242,8 @@ export default function ChildHomeScreen() {
                 <TouchableOpacity
                   key={task.id}
                   style={[styles.taskCard, status !== 'none' && styles.taskCardDone]}
-                  onPress={() => status === 'none' && markDone(task.id)}
-                  disabled={status !== 'none' || submitting === task.id}
+                  onPress={() => status === 'none' && setSelectedTask(task)}
+                  disabled={status !== 'none'}
                   activeOpacity={0.75}
                 >
                   <TaskIcon name={task.icon} color={task.color} />
@@ -268,13 +263,8 @@ export default function ChildHomeScreen() {
                     )}
                     {status === 'none' && (
                       <View style={styles.starReward}>
-                        {submitting === task.id
-                          ? <ActivityIndicator size="small" color="#f59e0b" />
-                          : <>
-                              <Star size={14} color="#f59e0b" strokeWidth={1.5} />
-                              <Text style={styles.starRewardText}>{task.star_reward ?? 1}</Text>
-                            </>
-                        }
+                        <Star size={14} color="#f59e0b" strokeWidth={1.5} />
+                        <Text style={styles.starRewardText}>{task.star_reward ?? 1}</Text>
                       </View>
                     )}
                   </View>
@@ -327,6 +317,73 @@ export default function ChildHomeScreen() {
           </View>
         </ScrollView>
       </ScrollView>
+
+      {/* Task completion modal */}
+      <Modal
+        visible={!!selectedTask}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedTask(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setSelectedTask(null)}>
+          <Pressable style={styles.modalSheet} onPress={() => {}}>
+            {/* Handle bar */}
+            <View style={styles.sheetHandle} />
+
+            {/* Close button */}
+            <TouchableOpacity style={styles.sheetClose} onPress={() => setSelectedTask(null)}>
+              <X size={18} color="#64748b" />
+            </TouchableOpacity>
+
+            {/* Task icon */}
+            <View style={[
+              styles.modalIconWrap,
+              { backgroundColor: (selectedTask?.color ?? '#60a5fa') + '20', borderColor: (selectedTask?.color ?? '#60a5fa') + '40' }
+            ]}>
+              {(() => {
+                const IconComp = selectedTask?.icon ? (ICON_MAP[selectedTask.icon] ?? Star) : Star;
+                return <IconComp size={36} color={selectedTask?.color ?? '#60a5fa'} strokeWidth={1.5} />;
+              })()}
+            </View>
+
+            <Text style={styles.modalTaskTitle}>{selectedTask?.title}</Text>
+            <Text style={styles.modalSubtitle}>Complete this task to earn stars!</Text>
+
+            {/* Stars reward pill */}
+            <View style={styles.modalStarsPill}>
+              <Star size={18} color="#f59e0b" fill="#f59e0b" />
+              <Text style={styles.modalStarsText}>
+                {selectedTask?.star_reward ?? 1} {(selectedTask?.star_reward ?? 1) === 1 ? 'star' : 'stars'}
+              </Text>
+            </View>
+
+            <Text style={styles.modalNote}>
+              Your parent will review and approve your submission.
+            </Text>
+
+            {/* Submit button */}
+            <TouchableOpacity
+              style={[styles.submitBtn, submitting === selectedTask?.id && styles.submitBtnDisabled]}
+              onPress={submitCompletion}
+              disabled={!!submitting}
+              activeOpacity={0.85}
+            >
+              {submitting === selectedTask?.id ? (
+                <ActivityIndicator color="#000" />
+              ) : (
+                <>
+                  <CircleCheck size={20} color="#000" strokeWidth={2.5} />
+                  <Text style={styles.submitBtnText}>Submit for Approval</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setSelectedTask(null)}>
+              <Text style={styles.cancelBtnText}>Not yet</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -353,8 +410,12 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   greeting: { fontFamily: 'Nunito-ExtraBold', fontSize: 20, color: '#f1f5f9', lineHeight: 26 },
   tagline: { fontFamily: 'Inter-Regular', fontSize: 13, color: '#64748b', marginTop: 1 },
-  logoutBtn: { paddingVertical: 6, paddingHorizontal: 4 },
-  logoutText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#64748b' },
+  logoutBtn: {
+    paddingVertical: 8, paddingHorizontal: 14,
+    borderRadius: 10, borderWidth: 1,
+    borderColor: '#334155', backgroundColor: '#1e293b',
+  },
+  logoutText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#94a3b8' },
 
   // Stars card
   starsCard: {
@@ -431,4 +492,62 @@ const styles = StyleSheet.create({
     alignItems: 'center', borderWidth: 1, borderColor: '#1e293b',
   },
   emptyText: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#475569' },
+
+  // Modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#131c2e',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 24, paddingBottom: 40,
+    alignItems: 'center',
+    borderWidth: 1, borderColor: '#1e293b',
+  },
+  sheetHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#334155', marginBottom: 20,
+  },
+  sheetClose: {
+    position: 'absolute', top: 20, right: 20,
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#1e293b', justifyContent: 'center', alignItems: 'center',
+  },
+  modalIconWrap: {
+    width: 80, height: 80, borderRadius: 24,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1.5, marginBottom: 16,
+  },
+  modalTaskTitle: {
+    fontFamily: 'Nunito-ExtraBold', fontSize: 24, color: '#f1f5f9',
+    textAlign: 'center', marginBottom: 6,
+  },
+  modalSubtitle: {
+    fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b',
+    textAlign: 'center', marginBottom: 20,
+  },
+  modalStarsPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#1a1200', borderWidth: 1, borderColor: '#f59e0b40',
+    paddingHorizontal: 20, paddingVertical: 10, borderRadius: 40,
+    marginBottom: 20,
+  },
+  modalStarsText: {
+    fontFamily: 'Nunito-ExtraBold', fontSize: 20, color: '#f59e0b',
+  },
+  modalNote: {
+    fontFamily: 'Inter-Regular', fontSize: 13, color: '#475569',
+    textAlign: 'center', marginBottom: 28, paddingHorizontal: 16,
+  },
+  submitBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#f59e0b', borderRadius: 14,
+    paddingVertical: 16, paddingHorizontal: 32,
+    width: '100%', justifyContent: 'center', marginBottom: 12,
+  },
+  submitBtnDisabled: { opacity: 0.6 },
+  submitBtnText: { fontFamily: 'Nunito-ExtraBold', fontSize: 17, color: '#000' },
+  cancelBtn: { paddingVertical: 10 },
+  cancelBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: '#475569' },
 });
