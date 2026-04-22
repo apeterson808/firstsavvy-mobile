@@ -51,7 +51,10 @@ export default function DashboardScreen() {
   useEffect(() => { load(); }, [profile]);
 
   async function load() {
-    if (!profile) return;
+    if (!profile) {
+      setLoading(false);
+      return;
+    }
     const [acctRes, txRes, childRes] = await Promise.all([
       supabase
         .from('user_chart_of_accounts')
