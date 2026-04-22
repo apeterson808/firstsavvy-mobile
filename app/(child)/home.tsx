@@ -50,15 +50,31 @@ export default function ChildHomeScreen() {
 
   const child = activeChild;
 
-  useEffect(() => { load(); }, [childId, profile]);
+  useEffect(() => { load(); }, [childId]);
 
   async function load() {
-    if (!profile || !childId) return;
+    if (!childId) return;
+
+    // Look up the child's parent_profile_id so we can load their tasks/rewards
+    // without needing an active parent session (e.g. when a child logs in directly).
+    const { data: childRow } = await supabase
+      .from('child_profiles')
+      .select('parent_profile_id')
+      .eq('id', childId)
+      .maybeSingle();
+
+    const parentProfileId = childRow?.parent_profile_id ?? profile?.id;
+    if (!parentProfileId) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     const [taskRes, completionRes, rewardRes] = await Promise.all([
       supabase
         .from('tasks')
         .select('id, title, description, category, icon, color')
-        .eq('profile_id', profile.id)
+        .eq('profile_id', parentProfileId)
         .eq('is_active', true)
         .order('created_at', { ascending: false }),
       supabase
@@ -68,7 +84,7 @@ export default function ChildHomeScreen() {
       supabase
         .from('rewards')
         .select('id, title, description, is_active')
-        .eq('profile_id', profile.id)
+        .eq('profile_id', parentProfileId)
         .eq('is_active', true)
         .is('redeemed_at', null)
         .limit(3),
@@ -127,7 +143,14 @@ export default function ChildHomeScreen() {
             <Text style={styles.childName}>{childName}!</Text>
           </View>
           <TouchableOpacity
-            onPress={() => { setActiveChild(null); router.replace('/(tabs)/kids'); }}
+            onPress={() => {
+              setActiveChild(null);
+              if (profile) {
+                router.replace('/(tabs)/kids');
+              } else {
+                router.replace('/(auth)/login');
+              }
+            }}
             style={styles.logoutBtn}
           >
             <LogOut size={18} color="#94a3b8" />
