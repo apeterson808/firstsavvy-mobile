@@ -63,31 +63,30 @@ export default function ChildPinScreen() {
 
   async function verify(enteredPin: string) {
     if (!child) return;
-    // Compare plain text PIN stored in the db
-    const { data } = await supabase
-      .from('child_profiles')
-      .select('pin_plaintext')
-      .eq('id', child.id)
-      .maybeSingle();
 
-    const storedPin = (data as any)?.pin_plaintext ?? null;
+    const email = `child_${child.id}@firstsavvy.internal`;
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password: enteredPin,
+    });
 
-    if (storedPin && enteredPin === storedPin) {
-      setActiveChild({
-        id: child.id,
-        child_name: child.child_name,
-        first_name: child.first_name,
-        display_name: child.display_name,
-        avatar_url: child.avatar_url,
-        stars_balance: child.stars_balance,
-        cash_balance: child.cash_balance,
-        current_permission_level: child.current_permission_level,
-      });
-      router.replace({ pathname: '/(child)/home', params: { childId: child.id } });
-    } else {
+    if (authError || !authData.session) {
       setError('Incorrect PIN. Try again.');
       setPin('');
+      return;
     }
+
+    setActiveChild({
+      id: child.id,
+      child_name: child.child_name,
+      first_name: child.first_name,
+      display_name: child.display_name,
+      avatar_url: child.avatar_url,
+      stars_balance: child.stars_balance,
+      cash_balance: child.cash_balance,
+      current_permission_level: child.current_permission_level,
+    });
+    router.replace({ pathname: '/(child)/home', params: { childId: child.id } });
   }
 
   const childName = child?.display_name ?? child?.first_name ?? child?.child_name ?? '';

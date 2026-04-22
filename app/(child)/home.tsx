@@ -11,24 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  Star,
-  Music,
-  Bed,
-  Trash2,
-  Smile,
-  Gift,
-  LogOut,
-  Trophy,
-  Sparkles,
-  Plane,
-  ShoppingBag,
-  Heart,
-  Zap,
-  BookOpen,
-  Utensils,
-  Home,
-} from 'lucide-react-native';
+import { Star, Music, Bed, Trash2, Smile, Gift, LogOut, Trophy, Sparkles, Plane, ShoppingBag, Heart, Zap, BookOpen, Utensils, Hop as Home } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
@@ -183,7 +166,8 @@ export default function ChildHomeScreen() {
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => {
+            onPress={async () => {
+              await supabase.auth.signOut();
               setActiveChild(null);
               if (profile) {
                 router.replace('/(tabs)/kids');
