@@ -174,6 +174,8 @@ export default function LoginScreen() {
                   placeholderTextColor="#94a3b8"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  returnKeyType="go"
+                  onSubmitEditing={handleChildLogin}
                 />
 
                 <TouchableOpacity
