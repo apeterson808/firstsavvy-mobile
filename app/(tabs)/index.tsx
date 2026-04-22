@@ -37,6 +37,7 @@ interface ChildProfile {
   child_name: string;
   stars_balance: number;
   avatar_url: string | null;
+  family_role: string | null;
 }
 
 export default function DashboardScreen() {
@@ -67,7 +68,7 @@ export default function DashboardScreen() {
         .limit(5),
       supabase
         .from('child_profiles')
-        .select('id, display_name, child_name, stars_balance, avatar_url')
+        .select('id, display_name, child_name, stars_balance, avatar_url, family_role')
         .eq('parent_profile_id', profile.id)
         .eq('is_active', true),
     ]);
@@ -180,7 +181,7 @@ export default function DashboardScreen() {
         {children.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Kids</Text>
+              <Text style={styles.sectionTitle}>Family</Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/kids')}>
                 <Text style={styles.seeAll}>Manage</Text>
               </TouchableOpacity>
@@ -200,10 +201,12 @@ export default function DashboardScreen() {
                   <Text style={styles.kidName} numberOfLines={1}>
                     {child.display_name ?? child.child_name}
                   </Text>
-                  <View style={styles.kidStars}>
-                    <Star size={12} color="#fbbf24" fill="#fbbf24" />
-                    <Text style={styles.kidStarCount}>{child.stars_balance ?? 0}</Text>
-                  </View>
+                  {child.family_role !== 'spouse_partner' && (
+                    <View style={styles.kidStars}>
+                      <Star size={12} color="#fbbf24" fill="#fbbf24" />
+                      <Text style={styles.kidStarCount}>{child.stars_balance ?? 0}</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
