@@ -10,7 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   Star,
   Music,
@@ -72,6 +72,7 @@ function TaskIcon({ name, color }: { name: string | null; color: string | null }
 }
 
 export default function ChildHomeScreen() {
+  const { childId } = useLocalSearchParams<{ childId: string }>();
   const { activeChild, setActiveChild, profile } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completions, setCompletions] = useState<TaskCompletion[]>([]);
@@ -81,33 +82,33 @@ export default function ChildHomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
 
-  const childId = activeChild?.id;
+  const resolvedChildId = childId ?? activeChild?.id;
 
-  useEffect(() => { load(); }, [childId]);
+  useEffect(() => { load(); }, [resolvedChildId]);
 
   async function load() {
-    if (!childId) { setLoading(false); return; }
+    if (!resolvedChildId) { setLoading(false); return; }
 
     const [childRes, taskRes, completionRes, rewardRes] = await Promise.all([
       supabase
         .from('child_profiles')
         .select('child_name, avatar_url, stars_balance, cash_balance')
-        .eq('id', childId)
+        .eq('id', resolvedChildId)
         .maybeSingle(),
       supabase
         .from('tasks')
         .select('id, title, icon, color, star_reward')
-        .eq('assigned_to_child_id', childId)
+        .eq('assigned_to_child_id', resolvedChildId)
         .eq('is_active', true)
         .order('created_at', { ascending: true }),
       supabase
         .from('task_completions')
         .select('id, task_id, status, stars_earned')
-        .eq('child_profile_id', childId),
+        .eq('child_profile_id', resolvedChildId),
       supabase
         .from('rewards')
         .select('id, title, star_cost, image_url, icon, color')
-        .eq('assigned_to_child_id', childId)
+        .eq('assigned_to_child_id', resolvedChildId)
         .eq('is_active', true)
         .is('redeemed_at', null),
     ]);
@@ -121,13 +122,13 @@ export default function ChildHomeScreen() {
   }
 
   async function markDone(taskId: string) {
-    if (!childId) return;
+    if (!resolvedChildId) return;
     const existing = completions.find(c => c.task_id === taskId && c.status !== 'rejected');
     if (existing) return;
     setSubmitting(taskId);
     const task = tasks.find(t => t.id === taskId);
     await supabase.from('task_completions').insert({
-      child_profile_id: childId,
+      child_profile_id: resolvedChildId,
       task_id: taskId,
       status: 'pending_approval',
       stars_earned: task?.star_reward ?? 1,
