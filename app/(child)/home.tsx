@@ -7,18 +7,34 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
-import { Star, DollarSign, SquareCheck as CheckSquare, Gift, LogOut } from 'lucide-react-native';
+import { router } from 'expo-router';
+import {
+  Star,
+  Music,
+  Bed,
+  Trash2,
+  Smile,
+  Gift,
+  LogOut,
+  Trophy,
+  Sparkles,
+  Plane,
+  ShoppingBag,
+  Heart,
+  Zap,
+  BookOpen,
+  Utensils,
+  Home,
+} from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { LinearGradient } from 'expo-linear-gradient';
 
 interface Task {
   id: string;
   title: string;
-  description: string | null;
   icon: string | null;
   color: string | null;
   star_reward: number | null;
@@ -34,62 +50,69 @@ interface TaskCompletion {
 interface Reward {
   id: string;
   title: string;
-  description: string | null;
   star_cost: number | null;
-  is_active: boolean;
+  image_url: string | null;
+  icon: string | null;
+  color: string | null;
+}
+
+const ICON_MAP: Record<string, React.ComponentType<any>> = {
+  Music, Bed, Star, Trash2, Smile, Gift, Plane, ShoppingBag,
+  Heart, Zap, BookOpen, Utensils, Home, Trophy, Sparkles,
+};
+
+function TaskIcon({ name, color }: { name: string | null; color: string | null }) {
+  const bg = color ?? '#60a5fa';
+  const IconComp = name ? (ICON_MAP[name] ?? Star) : Star;
+  return (
+    <View style={[styles.taskIconWrap, { backgroundColor: bg + '25', borderColor: bg + '40' }]}>
+      <IconComp size={20} color={bg} strokeWidth={2} />
+    </View>
+  );
 }
 
 export default function ChildHomeScreen() {
-  const { childId } = useLocalSearchParams<{ childId: string }>();
   const { activeChild, setActiveChild, profile } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completions, setCompletions] = useState<TaskCompletion[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
+  const [childData, setChildData] = useState<{ child_name: string; avatar_url: string | null; stars_balance: number; cash_balance: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
 
-  const child = activeChild;
+  const childId = activeChild?.id;
 
   useEffect(() => { load(); }, [childId]);
 
   async function load() {
-    if (!childId) return;
+    if (!childId) { setLoading(false); return; }
 
-    // Look up the child's parent_profile_id so we can load their tasks/rewards
-    // without needing an active parent session (e.g. when a child logs in directly).
-    const { data: childRow } = await supabase
-      .from('child_profiles')
-      .select('parent_profile_id')
-      .eq('id', childId)
-      .maybeSingle();
-
-    const parentProfileId = childRow?.parent_profile_id ?? profile?.id;
-    if (!parentProfileId) {
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-
-    const [taskRes, completionRes, rewardRes] = await Promise.all([
+    const [childRes, taskRes, completionRes, rewardRes] = await Promise.all([
+      supabase
+        .from('child_profiles')
+        .select('child_name, avatar_url, stars_balance, cash_balance')
+        .eq('id', childId)
+        .maybeSingle(),
       supabase
         .from('tasks')
-        .select('id, title, description, icon, color, star_reward')
+        .select('id, title, icon, color, star_reward')
         .eq('assigned_to_child_id', childId)
         .eq('is_active', true)
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: true }),
       supabase
         .from('task_completions')
         .select('id, task_id, status, stars_earned')
         .eq('child_profile_id', childId),
       supabase
         .from('rewards')
-        .select('id, title, description, star_cost, is_active')
+        .select('id, title, star_cost, image_url, icon, color')
         .eq('assigned_to_child_id', childId)
         .eq('is_active', true)
-        .is('redeemed_at', null)
-        .limit(3),
+        .is('redeemed_at', null),
     ]);
+
+    setChildData(childRes.data ?? null);
     setTasks(taskRes.data ?? []);
     setCompletions(completionRes.data ?? []);
     setRewards(rewardRes.data ?? []);
@@ -107,7 +130,7 @@ export default function ChildHomeScreen() {
       child_profile_id: childId,
       task_id: taskId,
       status: 'pending_approval',
-      stars_earned: task?.star_reward ?? 5,
+      stars_earned: task?.star_reward ?? 1,
     });
     setSubmitting(null);
     load();
@@ -121,12 +144,17 @@ export default function ChildHomeScreen() {
     return 'none';
   }
 
-  const childName = child?.display_name ?? child?.first_name ?? child?.child_name ?? 'Explorer';
+  const childName = childData?.child_name ?? activeChild?.child_name ?? 'Explorer';
+  const firstName = childName.split(' ')[0];
+  const stars = childData?.stars_balance ?? activeChild?.stars_balance ?? 0;
+  const avatarUrl = childData?.avatar_url ?? null;
+  const pendingCount = tasks.filter(t => taskStatus(t.id) === 'pending').length;
+  const doneCount = tasks.filter(t => taskStatus(t.id) === 'done').length;
 
   if (loading) {
     return (
       <View style={styles.loadingCenter}>
-        <ActivityIndicator color="#fbbf24" size="large" />
+        <ActivityIndicator color="#f59e0b" size="large" />
       </View>
     );
   }
@@ -136,13 +164,22 @@ export default function ChildHomeScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#fbbf24" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#f59e0b" />}
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Hello,</Text>
-            <Text style={styles.childName}>{childName}!</Text>
+          <View style={styles.headerLeft}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarInitial}>{firstName[0]}</Text>
+              </View>
+            )}
+            <View style={styles.headerText}>
+              <Text style={styles.greeting}>Hi, {childName}!</Text>
+              <Text style={styles.tagline}>Ready to earn some stars?</Text>
+            </View>
           </View>
           <TouchableOpacity
             onPress={() => {
@@ -155,106 +192,116 @@ export default function ChildHomeScreen() {
             }}
             style={styles.logoutBtn}
           >
-            <LogOut size={18} color="#94a3b8" />
+            <LogOut size={16} color="#94a3b8" />
           </TouchableOpacity>
         </View>
 
-        {/* Balance Card */}
-        <LinearGradient colors={['#d97706', '#92400e']} style={styles.balanceCard}>
-          <View style={styles.balanceRow}>
-            <View style={styles.balanceStat}>
-              <Star size={20} color="#fef3c7" fill="#fef3c7" />
-              <Text style={styles.balanceValue}>{child?.stars_balance ?? 0}</Text>
-              <Text style={styles.balanceLabel}>Stars</Text>
-            </View>
-            <View style={styles.balanceDivider} />
-            <View style={styles.balanceStat}>
-              <DollarSign size={20} color="#fef3c7" />
-              <Text style={styles.balanceValue}>${(child?.cash_balance ?? 0).toFixed(2)}</Text>
-              <Text style={styles.balanceLabel}>Cash</Text>
+        {/* Stars Card */}
+        <View style={styles.starsCard}>
+          <View style={styles.starsCardInner}>
+            <Star size={36} color="#f59e0b" fill="#f59e0b" />
+            <View style={styles.starsTextWrap}>
+              <Text style={styles.starsLabel}>YOUR STARS</Text>
+              <Text style={styles.starsValue}>{stars}</Text>
             </View>
           </View>
-        </LinearGradient>
+        </View>
 
-        {/* Tasks */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <CheckSquare size={18} color="#60a5fa" />
-            <Text style={styles.sectionTitle}>My Chores</Text>
+        {/* Tasks Section */}
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleWrap}>
+            <View style={styles.sectionIconWrap}>
+              <Trophy size={16} color="#fff" />
+            </View>
+            <Text style={styles.sectionTitle}>Your Tasks</Text>
           </View>
-
-          {tasks.length === 0 && (
-            <Text style={styles.emptySmall}>No chores assigned yet!</Text>
+          {tasks.length > 0 && (
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{tasks.length} total</Text>
+            </View>
           )}
+        </View>
 
+        <View style={styles.taskList}>
+          {tasks.length === 0 && (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>No tasks assigned yet!</Text>
+            </View>
+          )}
           {tasks.map(task => {
             const status = taskStatus(task.id);
             return (
-              <View key={task.id} style={[styles.taskRow, status !== 'none' && styles.taskDone]}>
-                <View style={[styles.taskIconWrap, { backgroundColor: (task.color ?? '#2563eb') + '20' }]}>
-                  <Text style={styles.taskIconEmoji}>{task.icon ?? '✅'}</Text>
-                </View>
-                <View style={styles.taskInfo}>
-                  <Text style={[styles.taskTitle, status === 'done' && styles.taskTitleDone]}>
-                    {task.title}
-                  </Text>
-                  {task.description && (
-                    <Text style={styles.taskDesc} numberOfLines={1}>{task.description}</Text>
+              <TouchableOpacity
+                key={task.id}
+                style={[styles.taskCard, status !== 'none' && styles.taskCardDone]}
+                onPress={() => status === 'none' && markDone(task.id)}
+                disabled={status !== 'none' || submitting === task.id}
+                activeOpacity={0.75}
+              >
+                <TaskIcon name={task.icon} color={task.color} />
+                <Text style={[styles.taskTitle, status === 'done' && styles.taskTitleStrike]} numberOfLines={1}>
+                  {task.title}
+                </Text>
+                <View style={styles.taskRight}>
+                  {status === 'done' && (
+                    <View style={styles.doneBadge}>
+                      <Text style={styles.doneBadgeText}>Done!</Text>
+                    </View>
+                  )}
+                  {status === 'pending' && (
+                    <View style={styles.pendingBadge}>
+                      <Text style={styles.pendingBadgeText}>Waiting</Text>
+                    </View>
+                  )}
+                  {status === 'none' && (
+                    <View style={styles.starReward}>
+                      {submitting === task.id
+                        ? <ActivityIndicator size="small" color="#f59e0b" />
+                        : <>
+                            <Star size={14} color="#f59e0b" strokeWidth={1.5} />
+                            <Text style={styles.starRewardText}>{task.star_reward ?? 1}</Text>
+                          </>
+                      }
+                    </View>
                   )}
                 </View>
-                {status === 'done' && (
-                  <View style={styles.doneTag}>
-                    <Text style={styles.doneTagText}>Done!</Text>
-                  </View>
-                )}
-                {status === 'pending' && (
-                  <View style={styles.pendingTag}>
-                    <Text style={styles.pendingTagText}>Waiting</Text>
-                  </View>
-                )}
-                {status === 'none' && (
-                  <TouchableOpacity
-                    style={[styles.markBtn, submitting === task.id && styles.markBtnDisabled]}
-                    onPress={() => markDone(task.id)}
-                    disabled={submitting === task.id}
-                  >
-                    {submitting === task.id
-                      ? <ActivityIndicator size="small" color="#fff" />
-                      : <Text style={styles.markBtnText}>Done</Text>}
-                  </TouchableOpacity>
-                )}
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* Rewards */}
+        {/* Rewards Section */}
         {rewards.length > 0 && (
-          <View style={styles.section}>
+          <>
             <View style={styles.sectionHeader}>
-              <Gift size={18} color="#fbbf24" />
-              <Text style={styles.sectionTitle}>Rewards I Can Earn</Text>
-            </View>
-            {rewards.map(reward => (
-              <View key={reward.id} style={styles.rewardRow}>
-                <View style={styles.rewardIconWrap}>
-                  <Gift size={18} color="#fbbf24" />
+              <View style={styles.sectionTitleWrap}>
+                <View style={[styles.sectionIconWrap, styles.rewardIconBg]}>
+                  <Sparkles size={16} color="#fff" />
                 </View>
-                <View style={styles.rewardInfo}>
-                  <Text style={styles.rewardTitle}>{reward.title}</Text>
-                  {reward.description && (
-                    <Text style={styles.rewardDesc} numberOfLines={1}>{reward.description}</Text>
-                  )}
-                </View>
-                {reward.star_cost != null && (
-                  <View style={styles.rewardCost}>
-                    <Star size={12} color="#fbbf24" fill="#fbbf24" />
-                    <Text style={styles.rewardCostText}>{reward.star_cost}</Text>
-                  </View>
-                )}
+                <Text style={styles.sectionTitle}>Rewards</Text>
               </View>
-            ))}
-          </View>
+              <View style={[styles.countBadge, styles.rewardCountBadge]}>
+                <Text style={styles.countBadgeText}>{rewards.length} available</Text>
+              </View>
+            </View>
+
+            <View style={styles.taskList}>
+              {rewards.map(reward => (
+                <View key={reward.id} style={styles.taskCard}>
+                  {reward.image_url ? (
+                    <Image source={{ uri: reward.image_url }} style={styles.rewardThumb} />
+                  ) : (
+                    <TaskIcon name={reward.icon} color={reward.color} />
+                  )}
+                  <Text style={styles.taskTitle} numberOfLines={1}>{reward.title}</Text>
+                  <View style={styles.starReward}>
+                    <Star size={14} color="#f59e0b" strokeWidth={1.5} />
+                    <Text style={styles.starRewardText}>{reward.star_cost ?? '?'}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -262,68 +309,107 @@ export default function ChildHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0f172a' },
+  safe: { flex: 1, backgroundColor: '#0d1117' },
   scroll: { flex: 1 },
-  content: { padding: 20, paddingBottom: 40 },
-  loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  greeting: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b' },
-  childName: { fontFamily: 'Nunito-ExtraBold', fontSize: 30, color: '#f1f5f9' },
-  logoutBtn: { padding: 8, backgroundColor: '#1e293b', borderRadius: 10 },
-  balanceCard: {
-    borderRadius: 20, padding: 24, marginBottom: 20,
-    shadowColor: '#d97706', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+  content: { padding: 16, paddingBottom: 48 },
+  loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d1117' },
+
+  // Header
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 20, paddingTop: 4,
   },
-  balanceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  balanceStat: { flex: 1, alignItems: 'center', gap: 4 },
-  balanceValue: { fontFamily: 'Nunito-ExtraBold', fontSize: 34, color: '#fff' },
-  balanceLabel: { fontFamily: 'Inter-Medium', fontSize: 13, color: '#fef3c7' },
-  balanceDivider: { width: 1, height: 60, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 16 },
-  section: {
-    backgroundColor: '#1e293b', borderRadius: 16, padding: 16,
-    marginBottom: 16, borderWidth: 1, borderColor: '#334155',
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  avatar: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: '#f59e0b' },
+  avatarFallback: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: '#1e3a5f', borderWidth: 2, borderColor: '#f59e0b',
+    justifyContent: 'center', alignItems: 'center',
   },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  sectionTitle: { fontFamily: 'Inter-SemiBold', fontSize: 16, color: '#f1f5f9' },
-  emptySmall: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#475569', textAlign: 'center', paddingVertical: 12 },
-  taskRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#0f172a',
+  avatarInitial: { fontFamily: 'Nunito-ExtraBold', fontSize: 22, color: '#f59e0b' },
+  headerText: { flex: 1 },
+  greeting: { fontFamily: 'Nunito-ExtraBold', fontSize: 20, color: '#f1f5f9', lineHeight: 26 },
+  tagline: { fontFamily: 'Inter-Regular', fontSize: 13, color: '#64748b', marginTop: 1 },
+  logoutBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: '#1e293b', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: '#334155',
   },
-  taskDone: { opacity: 0.6 },
+
+  // Stars card
+  starsCard: {
+    borderRadius: 18,
+    marginBottom: 24,
+    overflow: 'hidden',
+    backgroundColor: '#1a1200',
+    borderWidth: 1,
+    borderColor: '#f59e0b40',
+  },
+  starsCardInner: {
+    flexDirection: 'row', alignItems: 'center', gap: 16,
+    padding: 20,
+    backgroundColor: 'rgba(245,158,11,0.08)',
+  },
+  starsTextWrap: {},
+  starsLabel: {
+    fontFamily: 'Inter-SemiBold', fontSize: 10, color: '#f59e0b',
+    letterSpacing: 1.5, textTransform: 'uppercase',
+  },
+  starsValue: { fontFamily: 'Nunito-ExtraBold', fontSize: 44, color: '#f59e0b', lineHeight: 52 },
+
+  // Section headers
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  sectionTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionIconWrap: {
+    width: 28, height: 28, borderRadius: 8, backgroundColor: '#2563eb',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  rewardIconBg: { backgroundColor: '#7c3aed' },
+  sectionTitle: { fontFamily: 'Nunito-ExtraBold', fontSize: 18, color: '#f1f5f9' },
+  countBadge: {
+    backgroundColor: '#1e3a5f', paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20,
+  },
+  rewardCountBadge: { backgroundColor: '#2e1065' },
+  countBadgeText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#60a5fa' },
+
+  // Task list
+  taskList: { marginBottom: 24, gap: 8 },
+  taskCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#131c2e', borderRadius: 14,
+    paddingVertical: 14, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: '#1e293b',
+  },
+  taskCardDone: { opacity: 0.55 },
   taskIconWrap: {
-    width: 40, height: 40, borderRadius: 10,
-    justifyContent: 'center', alignItems: 'center', marginRight: 12,
+    width: 42, height: 42, borderRadius: 11,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, flexShrink: 0,
   },
-  taskIconEmoji: { fontSize: 20 },
-  taskInfo: { flex: 1 },
-  taskTitle: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#f1f5f9' },
-  taskTitleDone: { textDecorationLine: 'line-through', color: '#475569' },
-  taskDesc: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#64748b', marginTop: 2 },
-  markBtn: {
-    backgroundColor: '#2563eb', paddingVertical: 7, paddingHorizontal: 14,
-    borderRadius: 8, minWidth: 56, alignItems: 'center',
+  taskTitle: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: '#e2e8f0', flex: 1 },
+  taskTitleStrike: { textDecorationLine: 'line-through', color: '#475569' },
+  taskRight: { flexShrink: 0 },
+  starReward: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  starRewardText: { fontFamily: 'Nunito-ExtraBold', fontSize: 15, color: '#f59e0b' },
+  doneBadge: {
+    backgroundColor: '#052e16', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
   },
-  markBtnDisabled: { opacity: 0.5 },
-  markBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#fff' },
-  doneTag: { backgroundColor: '#052e16', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8 },
-  doneTagText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#4ade80' },
-  pendingTag: { backgroundColor: '#1c1a0e', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8 },
-  pendingTagText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#fbbf24' },
-  rewardRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#0f172a',
+  doneBadgeText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#4ade80' },
+  pendingBadge: {
+    backgroundColor: '#1c1a0e', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
   },
-  rewardIconWrap: {
-    width: 40, height: 40, borderRadius: 10, backgroundColor: '#1c1a0e',
-    justifyContent: 'center', alignItems: 'center', marginRight: 12,
+  pendingBadgeText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#f59e0b' },
+
+  // Reward thumb
+  rewardThumb: { width: 42, height: 42, borderRadius: 10 },
+
+  emptyCard: {
+    backgroundColor: '#131c2e', borderRadius: 14, padding: 24,
+    alignItems: 'center', borderWidth: 1, borderColor: '#1e293b',
   },
-  rewardInfo: { flex: 1 },
-  rewardTitle: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#f1f5f9' },
-  rewardDesc: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#64748b', marginTop: 2 },
-  rewardCost: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#1c1a0e', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
-  },
-  rewardCostText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#fbbf24' },
+  emptyText: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#475569' },
 });
