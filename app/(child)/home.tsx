@@ -48,7 +48,7 @@ interface Reward {
 
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
   Music, Bed, Star, Trash2, Smile, Gift, Plane, ShoppingBag,
-  Heart, Zap, BookOpen, Utensils, Home, Trophy, Sparkles,
+  Heart, Zap, BookOpen, Utensils, Home, Sparkles,
 };
 
 function TaskIcon({ name, color, size = 20 }: { name: string | null; color: string | null; size?: number }) {
