@@ -24,6 +24,7 @@ import {
   CircleX,
   Pencil,
   Trash2,
+  Plus,
   MoreVertical,
   Music,
   Bed,
@@ -83,6 +84,7 @@ interface Task {
   icon: string | null;
   color: string | null;
   star_reward: number | null;
+  reset_mode: string;
 }
 
 interface Completion {
@@ -378,7 +380,17 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   const [editIcon, setEditIcon] = useState<string | null>(null);
   const [editColor, setEditColor] = useState<string | null>(null);
   const [editStars, setEditStars] = useState('1');
+  const [editResetMode, setEditResetMode] = useState<'daily' | 'instant'>('daily');
   const [editSaving, setEditSaving] = useState(false);
+
+  const [createSheet, setCreateSheet] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createDescription, setCreateDescription] = useState('');
+  const [createIcon, setCreateIcon] = useState<string | null>(null);
+  const [createColor, setCreateColor] = useState<string | null>(null);
+  const [createStars, setCreateStars] = useState('1');
+  const [createResetMode, setCreateResetMode] = useState<'daily' | 'instant'>('daily');
+  const [createSaving, setCreateSaving] = useState(false);
 
   const tabUnderlineX = useRef(new Animated.Value(0)).current;
   const tabBarWidth = useRef(0);
@@ -394,8 +406,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
         .maybeSingle(),
       supabase
         .from('tasks')
-        .select('id, title, description, icon, color, star_reward')
-        .eq('profile_id', profile.id)
+        .select('id, title, description, icon, color, star_reward, reset_mode')
         .eq('assigned_to_child_id', childId)
         .eq('is_active', true)
         .order('created_at', { ascending: false }),
@@ -494,6 +505,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
     setEditIcon(task.icon);
     setEditColor(task.color);
     setEditStars(String(task.star_reward ?? 1));
+    setEditResetMode((task.reset_mode === 'instant' ? 'instant' : 'daily'));
     setEditSheet(task);
   }
 
@@ -506,9 +518,39 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
       icon: editIcon,
       color: editColor,
       star_reward: Math.max(0, parseInt(editStars, 10) || 0),
+      reset_mode: editResetMode,
     }).eq('id', editSheet.id);
     setEditSheet(null);
     setEditSaving(false);
+    await load();
+  }
+
+  function openCreateSheet() {
+    setCreateTitle('');
+    setCreateDescription('');
+    setCreateIcon(null);
+    setCreateColor(null);
+    setCreateStars('1');
+    setCreateResetMode('daily');
+    setCreateSheet(true);
+  }
+
+  async function saveCreate() {
+    if (!createTitle.trim() || !profile) return;
+    setCreateSaving(true);
+    await supabase.from('tasks').insert({
+      title: createTitle.trim(),
+      description: createDescription.trim() || null,
+      icon: createIcon,
+      color: createColor,
+      star_reward: Math.max(0, parseInt(createStars, 10) || 0),
+      reset_mode: createResetMode,
+      assigned_to_child_id: childId,
+      profile_id: profile.id,
+      is_active: true,
+    });
+    setCreateSheet(false);
+    setCreateSaving(false);
     await load();
   }
 
@@ -538,7 +580,11 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   }
 
   function latestActiveCompletion(taskId: string) {
-    return completions.find(c => c.task_id === taskId && c.status !== 'rejected') ?? null;
+    const task = tasks.find(t => t.id === taskId);
+    const resetMode = task?.reset_mode ?? 'daily';
+    const completion = completions.find(c => c.task_id === taskId && c.status !== 'rejected') ?? null;
+    if (resetMode === 'instant' && completion?.status === 'approved') return null;
+    return completion;
   }
 
   function switchTab(tab: Tab) {
@@ -741,6 +787,27 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               })}
             </View>
 
+            {/* Reset mode */}
+            <Text style={[styles.editLabel, { marginTop: 16 }]}>Resets</Text>
+            <View style={styles.resetToggleRow}>
+              <TouchableOpacity
+                style={[styles.resetOption, editResetMode === 'daily' && styles.resetOptionActive]}
+                onPress={() => setEditResetMode('daily')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.resetOptionText, editResetMode === 'daily' && styles.resetOptionTextActive]}>Daily</Text>
+                <Text style={[styles.resetOptionSub, editResetMode === 'daily' && styles.resetOptionSubActive]}>Resets each day</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.resetOption, editResetMode === 'instant' && styles.resetOptionActive]}
+                onPress={() => setEditResetMode('instant')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.resetOptionText, editResetMode === 'instant' && styles.resetOptionTextActive]}>Instant</Text>
+                <Text style={[styles.resetOptionSub, editResetMode === 'instant' && styles.resetOptionSubActive]}>Resets after approved</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
               style={[styles.awardConfirmBtn, { marginTop: 24, backgroundColor: '#2563eb' }, (!editTitle.trim() || editSaving) && { opacity: 0.5 }]}
               onPress={saveEdit}
@@ -754,6 +821,132 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.awardCancelBtn} onPress={() => setEditSheet(null)}>
+              <Text style={styles.awardCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal transparent visible={createSheet} animationType="slide" onRequestClose={() => setCreateSheet(false)}>
+        <Pressable style={styles.sheetOverlay} onPress={() => setCreateSheet(false)}>
+          <Pressable style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]} onPress={() => {}}>
+            <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
+            <TouchableOpacity style={styles.sheetClose} onPress={() => setCreateSheet(false)}>
+              <CircleX size={18} color="#64748b" />
+            </TouchableOpacity>
+
+            <Text style={[styles.sheetTitle, { textAlign: 'left', fontSize: 20, marginBottom: 20 }]}>New Task</Text>
+
+            <Text style={styles.editLabel}>Title</Text>
+            <TextInput
+              style={styles.editInput}
+              value={createTitle}
+              onChangeText={setCreateTitle}
+              placeholder="Task title"
+              placeholderTextColor="#475569"
+              returnKeyType="next"
+            />
+
+            <Text style={styles.editLabel}>Description (optional)</Text>
+            <TextInput
+              style={[styles.editInput, { minHeight: 60, textAlignVertical: 'top' }]}
+              value={createDescription}
+              onChangeText={setCreateDescription}
+              placeholder="Short description..."
+              placeholderTextColor="#475569"
+              multiline
+              returnKeyType="done"
+            />
+
+            <Text style={styles.editLabel}>Stars</Text>
+            <View style={styles.editStarRow}>
+              <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
+                <Text style={styles.awardStepBtnText}>−</Text>
+              </TouchableOpacity>
+              <View style={styles.editStarInputWrap}>
+                <Star size={15} color="#f59e0b" fill="#f59e0b" />
+                <TextInput
+                  style={styles.awardStarInput}
+                  value={createStars}
+                  onChangeText={v => setCreateStars(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  selectTextOnFocus
+                />
+              </View>
+              <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
+                <Text style={styles.awardStepBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.editLabel}>Icon</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+              {EDIT_ICONS.map(({ key, Icon }) => {
+                const selected = createIcon === key;
+                const color = createColor ?? '#60a5fa';
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.iconPickerItem, selected && { borderColor: color, backgroundColor: color + '20' }]}
+                    onPress={() => setCreateIcon(key)}
+                    activeOpacity={0.7}
+                  >
+                    <Icon size={20} color={selected ? color : '#64748b'} strokeWidth={1.8} />
+                    {selected && <View style={[styles.iconPickerCheck, { backgroundColor: color }]}><Check size={8} color="#fff" /></View>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={styles.editLabel}>Color</Text>
+            <View style={styles.colorPickerRow}>
+              {EDIT_COLORS.map(c => {
+                const selected = createColor === c;
+                return (
+                  <TouchableOpacity
+                    key={c}
+                    style={[styles.colorSwatch, { backgroundColor: c }, selected && styles.colorSwatchSelected]}
+                    onPress={() => setCreateColor(c)}
+                    activeOpacity={0.7}
+                  >
+                    {selected && <Check size={12} color="#fff" strokeWidth={3} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.editLabel, { marginTop: 16 }]}>Resets</Text>
+            <View style={styles.resetToggleRow}>
+              <TouchableOpacity
+                style={[styles.resetOption, createResetMode === 'daily' && styles.resetOptionActive]}
+                onPress={() => setCreateResetMode('daily')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.resetOptionText, createResetMode === 'daily' && styles.resetOptionTextActive]}>Daily</Text>
+                <Text style={[styles.resetOptionSub, createResetMode === 'daily' && styles.resetOptionSubActive]}>Resets each day</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.resetOption, createResetMode === 'instant' && styles.resetOptionActive]}
+                onPress={() => setCreateResetMode('instant')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.resetOptionText, createResetMode === 'instant' && styles.resetOptionTextActive]}>Instant</Text>
+                <Text style={[styles.resetOptionSub, createResetMode === 'instant' && styles.resetOptionSubActive]}>Resets after approved</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.awardConfirmBtn, { marginTop: 24, backgroundColor: '#2563eb' }, (!createTitle.trim() || createSaving) && { opacity: 0.5 }]}
+              onPress={saveCreate}
+              disabled={!createTitle.trim() || createSaving}
+              activeOpacity={0.85}
+            >
+              {createSaving
+                ? <ActivityIndicator color="#fff" size={18} />
+                : <><Plus size={18} color="#fff" strokeWidth={2.5} /><Text style={[styles.awardConfirmText, { color: '#fff' }]}>Add Task</Text></>
+              }
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.awardCancelBtn} onPress={() => setCreateSheet(false)}>
               <Text style={styles.awardCancelText}>Cancel</Text>
             </TouchableOpacity>
           </Pressable>
@@ -807,6 +1000,10 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
             {activeTab === 'Tasks' && (
               <View>
+                <TouchableOpacity style={styles.addTaskBtn} onPress={openCreateSheet} activeOpacity={0.7}>
+                  <Plus size={15} color="#60a5fa" />
+                  <Text style={styles.addTaskBtnText}>Add Task</Text>
+                </TouchableOpacity>
                 {tasks.length === 0 && <Text style={styles.emptyMsg}>No tasks assigned yet.</Text>}
                 {[...tasks].sort((a, b) => {
                   const aPending = latestActiveCompletion(a.id)?.status === 'pending' ? 0 : 1;
@@ -1307,6 +1504,23 @@ const styles = StyleSheet.create({
     width: 14, height: 14, borderRadius: 7,
     justifyContent: 'center', alignItems: 'center',
   },
+  addTaskBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    marginHorizontal: 14, marginTop: 12, marginBottom: 4,
+    paddingVertical: 9, borderRadius: 10,
+    backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e3a5f',
+  },
+  addTaskBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#60a5fa' },
+  resetToggleRow: { flexDirection: 'row', gap: 10, marginBottom: 4 },
+  resetOption: {
+    flex: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10,
+    backgroundColor: '#0f1e33', borderWidth: 1.5, borderColor: '#1e3a5f', alignItems: 'center',
+  },
+  resetOptionActive: { borderColor: '#3b82f6', backgroundColor: '#1e3a5f' },
+  resetOptionText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#475569' },
+  resetOptionTextActive: { color: '#60a5fa' },
+  resetOptionSub: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#334155', marginTop: 2 },
+  resetOptionSubActive: { color: '#93c5fd' },
   colorPickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
   colorSwatch: {
     width: 32, height: 32, borderRadius: 16,
