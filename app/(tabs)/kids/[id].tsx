@@ -90,6 +90,7 @@ interface Completion {
   task_id: string;
   status: string;
   stars_earned: number;
+  note: string | null;
   created_at: string;
 }
 
@@ -400,7 +401,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
         .order('created_at', { ascending: false }),
       supabase
         .from('task_completions')
-        .select('id, task_id, status, stars_earned, created_at')
+        .select('id, task_id, status, stars_earned, note, created_at')
         .eq('child_profile_id', childId)
         .order('created_at', { ascending: false })
         .limit(50),
@@ -631,7 +632,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               style={styles.awardNoteInput}
               value={awardNote}
               onChangeText={setAwardNote}
-              placeholder="Add a note for this award... (optional)"
+              placeholder="Add a message, e.g. Great job! (optional)"
               placeholderTextColor="#475569"
               returnKeyType="done"
             />
@@ -868,6 +869,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                       <View style={styles.taskMeta}>
                         <Text style={styles.taskTitle} numberOfLines={1}>{task?.title ?? 'Task'}</Text>
                         <Text style={styles.activityTime}>{label} at {time}</Text>
+                        {c.note ? <Text style={styles.activityNote} numberOfLines={2}>{c.note}</Text> : null}
                       </View>
                       <View style={[styles.statusPill, isApproved ? styles.statusApproved : isPending ? styles.statusPending : styles.statusRedeemed]}>
                         <Text style={[styles.statusPillText, isApproved ? styles.statusApprovedText : isPending ? styles.statusPendingText : styles.statusRedeemedText]}>
@@ -1170,6 +1172,7 @@ const styles = StyleSheet.create({
   activityDotPending: { backgroundColor: '#fbbf24' },
   activityDotRejected: { backgroundColor: '#f87171' },
   activityTime: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#64748b', marginTop: 2 },
+  activityNote: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#94a3b8', marginTop: 4, fontStyle: 'italic' },
   loadMoreBtn: {
     marginHorizontal: 14, marginVertical: 12, paddingVertical: 10,
     borderRadius: 10, backgroundColor: '#0f172a',
