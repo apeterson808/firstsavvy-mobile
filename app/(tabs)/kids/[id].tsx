@@ -13,6 +13,7 @@ import {
   Modal,
   Pressable,
   Linking,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -336,6 +337,9 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuState>({ visible: false, itemId: null, type: 'task' });
   const [activityLimit, setActivityLimit] = useState(10);
+  const [awardModal, setAwardModal] = useState<{ task: Task } | null>(null);
+  const [awardStarsInput, setAwardStarsInput] = useState('0');
+  const [awardNote, setAwardNote] = useState('');
 
   const tabUnderlineX = useRef(new Animated.Value(0)).current;
   const tabBarWidth = useRef(0);
@@ -419,14 +423,24 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
     setActionLoading(null);
   }
 
-  async function awardStars(task: Task) {
+  function openAwardModal(task: Task) {
+    setAwardStarsInput(String(task.star_reward ?? 0));
+    setAwardNote('');
+    setAwardModal({ task });
+  }
+
+  async function confirmAward() {
+    if (!awardModal) return;
+    const task = awardModal.task;
+    const stars = Math.max(0, parseInt(awardStarsInput, 10) || 0);
+    setAwardModal(null);
     setActionLoading('award-' + task.id);
-    const stars = task.star_reward ?? 0;
     await supabase.from('task_completions').insert({
       task_id: task.id,
       child_profile_id: childId,
       status: 'approved',
       stars_earned: stars,
+      note: awardNote.trim() || null,
       completed_at: new Date().toISOString(),
       reviewed_at: new Date().toISOString(),
     });
@@ -496,6 +510,71 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               <Text style={[styles.menuItemText, { color: '#f87171' }]}>Delete</Text>
             </TouchableOpacity>
           </View>
+        </Pressable>
+      </Modal>
+
+      <Modal transparent visible={!!awardModal} animationType="fade" onRequestClose={() => setAwardModal(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setAwardModal(null)}>
+          <Pressable style={styles.awardModalCard} onPress={e => e.stopPropagation()}>
+            <View style={styles.awardModalHeader}>
+              <View style={styles.awardModalIconWrap}>
+                <Star size={20} color="#fbbf24" fill="#fbbf24" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.awardModalTitle}>Award Stars</Text>
+                <Text style={styles.awardModalSubtitle} numberOfLines={1}>{awardModal?.task.title}</Text>
+              </View>
+            </View>
+
+            <View style={styles.awardModalDivider} />
+
+            <Text style={styles.awardModalLabel}>Stars to award</Text>
+            <View style={styles.awardStarRow}>
+              <TouchableOpacity
+                style={styles.awardStepBtn}
+                onPress={() => setAwardStarsInput(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.awardStepBtnText}>−</Text>
+              </TouchableOpacity>
+              <TextInput
+                style={styles.awardStarInput}
+                value={awardStarsInput}
+                onChangeText={v => setAwardStarsInput(v.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                selectTextOnFocus
+              />
+              <TouchableOpacity
+                style={styles.awardStepBtn}
+                onPress={() => setAwardStarsInput(s => String((parseInt(s, 10) || 0) + 1))}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.awardStepBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.awardDefaultHint}>Default: {awardModal?.task.star_reward ?? 0} star{(awardModal?.task.star_reward ?? 0) !== 1 ? 's' : ''}</Text>
+
+            <Text style={[styles.awardModalLabel, { marginTop: 16 }]}>Note (optional)</Text>
+            <TextInput
+              style={styles.awardNoteInput}
+              value={awardNote}
+              onChangeText={setAwardNote}
+              placeholder="Add a note for this award..."
+              placeholderTextColor="#475569"
+              multiline
+              numberOfLines={3}
+            />
+
+            <View style={styles.awardModalActions}>
+              <TouchableOpacity style={styles.awardCancelBtn} onPress={() => setAwardModal(null)} activeOpacity={0.7}>
+                <Text style={styles.awardCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.awardConfirmBtn} onPress={confirmAward} activeOpacity={0.7}>
+                <Star size={14} color="#fff" fill="#fff" />
+                <Text style={styles.awardConfirmText}>Award {awardStarsInput || '0'} Stars</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
         </Pressable>
       </Modal>
 
@@ -578,7 +657,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                           </TouchableOpacity>
                         </>
                       ) : (
-                        <TouchableOpacity style={[styles.compactBtn, styles.awardBtn, isApproved && styles.awardBtnDim]} onPress={() => awardStars(task)} disabled={busyAward}>
+                        <TouchableOpacity style={[styles.compactBtn, styles.awardBtn, isApproved && styles.awardBtnDim]} onPress={() => openAwardModal(task)} disabled={busyAward}>
                           {busyAward ? <ActivityIndicator size={12} color="#fbbf24" /> : <Star size={13} color="#fbbf24" />}
                           <Text style={styles.awardBtnText}>Award</Text>
                         </TouchableOpacity>
@@ -893,6 +972,7 @@ const styles = StyleSheet.create({
   statusPillText: { fontFamily: 'Inter-SemiBold', fontSize: 12 },
   statusRedeemed: { backgroundColor: '#052e16' },
   statusRedeemedText: { color: '#4ade80' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   menuPopover: {
     backgroundColor: '#1e293b', borderRadius: 12, borderWidth: 1, borderColor: '#334155', width: 160, overflow: 'hidden',
@@ -955,4 +1035,51 @@ const styles = StyleSheet.create({
   },
   tagText: { fontFamily: 'Inter-Medium', fontSize: 13, color: '#94a3b8' },
   notesText: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#94a3b8', lineHeight: 22 },
+
+  awardModalCard: {
+    backgroundColor: '#1e293b', borderRadius: 20, borderWidth: 1, borderColor: '#334155',
+    width: '100%', padding: 20,
+  },
+  awardModalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  awardModalIconWrap: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: '#78350f', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: '#b45309',
+  },
+  awardModalTitle: { fontFamily: 'Nunito-Bold', fontSize: 18, color: '#f1f5f9' },
+  awardModalSubtitle: { fontFamily: 'Inter-Regular', fontSize: 13, color: '#64748b', marginTop: 2 },
+  awardModalDivider: { height: 1, backgroundColor: '#334155', marginBottom: 16 },
+  awardModalLabel: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 },
+  awardStarRow: { flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'center' },
+  awardStepBtn: {
+    width: 40, height: 40, borderRadius: 10,
+    backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  awardStepBtnText: { fontFamily: 'Nunito-Bold', fontSize: 22, color: '#f1f5f9', lineHeight: 26 },
+  awardStarInput: {
+    width: 72, height: 48, borderRadius: 12,
+    backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#fbbf2440',
+    fontFamily: 'Nunito-Bold', fontSize: 28, color: '#fbbf24',
+    textAlign: 'center',
+  },
+  awardDefaultHint: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#475569', textAlign: 'center', marginTop: 8 },
+  awardNoteInput: {
+    backgroundColor: '#0f172a', borderRadius: 12, borderWidth: 1, borderColor: '#334155',
+    padding: 12, fontFamily: 'Inter-Regular', fontSize: 14, color: '#f1f5f9',
+    minHeight: 72, textAlignVertical: 'top',
+  },
+  awardModalActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
+  awardCancelBtn: {
+    flex: 1, paddingVertical: 12, borderRadius: 12,
+    backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155',
+    alignItems: 'center',
+  },
+  awardCancelText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#64748b' },
+  awardConfirmBtn: {
+    flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 12, borderRadius: 12,
+    backgroundColor: '#d97706',
+  },
+  awardConfirmText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#fff' },
 });
