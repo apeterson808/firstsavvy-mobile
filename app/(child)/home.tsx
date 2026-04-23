@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Star, Music, Bed, Trash2, Smile, Gift, Trophy, Sparkles, Plane, ShoppingBag, Heart, Zap, BookOpen, Utensils, Hop as Home, CircleCheck, X } from 'lucide-react-native';
+import { Star, Music, Bed, Trash2, Smile, Gift, Sparkles, Plane, ShoppingBag, Heart, Zap, BookOpen, Utensils, Hop as Home, CircleCheck, X } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -235,12 +235,7 @@ export default function ChildHomeScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleWrap}>
-              <View style={styles.sectionIconWrap}>
-                <Trophy size={16} color="#fff" />
-              </View>
-              <Text style={styles.sectionTitle}>Your Tasks</Text>
-            </View>
+            <Text style={styles.sectionTitle}>Your Tasks</Text>
           </View>
 
           <View style={styles.taskList}>
