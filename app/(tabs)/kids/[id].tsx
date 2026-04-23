@@ -530,7 +530,6 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             </View>
 
             <Text style={styles.sheetTitle}>{awardModal?.task.title}</Text>
-            <Text style={styles.sheetSubtitle}>Adjust stars and confirm the award</Text>
 
             <View style={styles.awardStarRow}>
               <TouchableOpacity
@@ -541,6 +540,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                 <Text style={styles.awardStepBtnText}>−</Text>
               </TouchableOpacity>
               <View style={styles.awardStarInputWrap}>
+                <Star size={15} color="#f59e0b" fill="#f59e0b" />
                 <TextInput
                   style={styles.awardStarInput}
                   value={awardStarsInput}
@@ -548,7 +548,6 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                   keyboardType="number-pad"
                   selectTextOnFocus
                 />
-                <Star size={16} color="#f59e0b" fill="#f59e0b" style={{ marginLeft: 4 }} />
               </View>
               <TouchableOpacity
                 style={styles.awardStepBtn}
@@ -558,7 +557,6 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                 <Text style={styles.awardStepBtnText}>+</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.awardDefaultHint}>Default value: {awardModal?.task.star_reward ?? 0} star{(awardModal?.task.star_reward ?? 0) !== 1 ? 's' : ''}</Text>
 
             <TextInput
               style={styles.awardNoteInput}
@@ -1057,14 +1055,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 1.5, marginBottom: 16,
   },
-  sheetTitle: { fontFamily: 'Nunito-ExtraBold', fontSize: 24, color: '#f1f5f9', textAlign: 'center', marginBottom: 6 },
-  sheetSubtitle: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b', textAlign: 'center', marginBottom: 24 },
-  awardStarRow: { flexDirection: 'row', alignItems: 'center', gap: 16, justifyContent: 'center', marginBottom: 8 },
+  sheetTitle: { fontFamily: 'Nunito-ExtraBold', fontSize: 24, color: '#f1f5f9', textAlign: 'center' },
+  awardStarRow: { flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'center', marginTop: 20, marginBottom: 24 },
   awardStarInputWrap: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#0f1e33', borderWidth: 1, borderColor: '#f59e0b40',
-    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 8,
-    minWidth: 90, justifyContent: 'center',
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8,
   },
   awardStepBtn: {
     width: 44, height: 44, borderRadius: 12,
@@ -1074,9 +1070,8 @@ const styles = StyleSheet.create({
   awardStepBtnText: { fontFamily: 'Nunito-Bold', fontSize: 24, color: '#f1f5f9', lineHeight: 28 },
   awardStarInput: {
     fontFamily: 'Nunito-ExtraBold', fontSize: 28, color: '#f59e0b',
-    textAlign: 'center', minWidth: 40,
+    textAlign: 'center', width: 48,
   },
-  awardDefaultHint: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#475569', textAlign: 'center', marginBottom: 20 },
   awardNoteInput: {
     width: '100%', backgroundColor: '#0f1e33', borderWidth: 1, borderColor: '#1e3a5f',
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
