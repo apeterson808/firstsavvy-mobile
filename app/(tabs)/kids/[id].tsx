@@ -838,8 +838,13 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                             <Text style={styles.approveBtnText}>Approve</Text>
                           </TouchableOpacity>
                         </>
+                      ) : isApproved ? (
+                        <View style={[styles.compactBtn, styles.doneBtn]}>
+                          <CircleCheck size={13} color="#4ade80" />
+                          <Text style={styles.doneBtnText}>Done</Text>
+                        </View>
                       ) : (
-                        <TouchableOpacity style={[styles.compactBtn, styles.awardBtn, isApproved && styles.awardBtnDim]} onPress={() => openAwardModal(task)} disabled={busyAward}>
+                        <TouchableOpacity style={[styles.compactBtn, styles.awardBtn]} onPress={() => openAwardModal(task)} disabled={busyAward}>
                           {busyAward ? <ActivityIndicator size={12} color="#1a0f00" /> : <Star size={13} color="#1a0f00" fill="#1a0f00" />}
                           <Text style={styles.awardBtnText}>Award</Text>
                         </TouchableOpacity>
@@ -1136,8 +1141,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  awardBtnDim: { opacity: 0.45 },
   awardBtnText: { fontFamily: 'Inter-Bold', fontSize: 12, color: '#1a0f00' },
+  doneBtn: { backgroundColor: '#052e16', borderWidth: 1, borderColor: '#166534' },
+  doneBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#4ade80' },
 
   rewardCard: { paddingHorizontal: 14, paddingVertical: 12 },
   rewardThumb: { width: 36, height: 36, borderRadius: 8, flexShrink: 0 },
