@@ -39,6 +39,7 @@ export default function TabsLayout() {
         options={{
           title: 'Contacts',
           tabBarIcon: ({ color, size }) => <Users color={color} size={size - 2} />,
+          href: '/kids',
         }}
       />
       <Tabs.Screen
