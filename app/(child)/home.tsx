@@ -284,12 +284,7 @@ export default function ChildHomeScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleWrap}>
-              <View style={[styles.sectionIconWrap, styles.rewardIconBg]}>
-                <Sparkles size={16} color="#fff" />
-              </View>
-              <Text style={styles.sectionTitle}>Rewards</Text>
-            </View>
+            <Text style={styles.sectionTitle}>Rewards</Text>
           </View>
 
           <View style={styles.taskList}>
