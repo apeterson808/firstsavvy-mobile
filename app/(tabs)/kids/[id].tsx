@@ -391,7 +391,12 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
   async function approveCompletion(completionId: string) {
     setActionLoading(completionId);
+    const completion = completions.find(c => c.id === completionId);
+    const starsEarned = completion?.stars_earned ?? 0;
     await supabase.from('task_completions').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', completionId);
+    if (starsEarned > 0) {
+      await supabase.from('child_profiles').update({ stars_balance: (child?.stars_balance ?? 0) + starsEarned }).eq('id', childId);
+    }
     await load();
     setActionLoading(null);
   }
