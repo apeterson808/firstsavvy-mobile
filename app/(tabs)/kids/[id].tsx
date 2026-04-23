@@ -319,7 +319,7 @@ function ContactDetail({ contact }: { contact: Contact }) {
 
 // ─── Child detail ─────────────────────────────────────────────────────────────
 
-const TABS = ['Tasks', 'Rewards'] as const;
+const TABS = ['Tasks', 'Rewards', 'Activity'] as const;
 type Tab = typeof TABS[number];
 
 interface MenuState { visible: boolean; itemId: string | null; type: 'task' | 'reward'; }
@@ -584,6 +584,34 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                       <TouchableOpacity style={styles.dotsBtn} onPress={() => openMenu(task.id, 'task')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                         <MoreVertical size={17} color="#475569" />
                       </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {activeTab === 'Activity' && (
+              <View>
+                {completions.length === 0 && <Text style={styles.emptyMsg}>No activity yet.</Text>}
+                {completions.map((c, idx) => {
+                  const task = tasks.find(t => t.id === c.task_id);
+                  const date = new Date(c.created_at);
+                  const label = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                  const time = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+                  const isApproved = c.status === 'approved';
+                  const isPending = c.status === 'pending';
+                  return (
+                    <View key={c.id} style={[styles.activityRow, idx > 0 && styles.taskRowBorder]}>
+                      <View style={[styles.activityDot, isApproved ? styles.activityDotApproved : isPending ? styles.activityDotPending : styles.activityDotRejected]} />
+                      <View style={styles.taskMeta}>
+                        <Text style={styles.taskTitle} numberOfLines={1}>{task?.title ?? 'Task'}</Text>
+                        <Text style={styles.activityTime}>{label} at {time}</Text>
+                      </View>
+                      <View style={[styles.statusPill, isApproved ? styles.statusApproved : isPending ? styles.statusPending : styles.statusRedeemed]}>
+                        <Text style={[styles.statusPillText, isApproved ? styles.statusApprovedText : isPending ? styles.statusPendingText : styles.statusRedeemedText]}>
+                          {isApproved ? `+${c.stars_earned} ★` : isPending ? 'Pending' : 'Rejected'}
+                        </Text>
+                      </View>
                     </View>
                   );
                 })}
@@ -865,6 +893,20 @@ const styles = StyleSheet.create({
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 16 },
   menuItemText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#f1f5f9' },
   menuDivider: { height: 1, backgroundColor: '#334155' },
+
+  activityRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 12, gap: 12,
+  },
+  activityDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+  activityDotApproved: { backgroundColor: '#4ade80' },
+  activityDotPending: { backgroundColor: '#fbbf24' },
+  activityDotRejected: { backgroundColor: '#f87171' },
+  activityTime: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#64748b', marginTop: 2 },
+  statusApproved: { backgroundColor: '#052e16' },
+  statusApprovedText: { color: '#4ade80' },
+  statusPending: { backgroundColor: '#1c1a0e' },
+  statusPendingText: { color: '#fbbf24' },
 
   // Contact detail styles
   quickActions: { flexDirection: 'row', gap: 12, marginBottom: 12 },
