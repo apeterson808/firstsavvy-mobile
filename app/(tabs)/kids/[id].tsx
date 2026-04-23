@@ -505,12 +505,6 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#60a5fa" />}
       >
         <LinearGradient colors={['#1e3a5f', '#0f172a']} style={styles.profileCard}>
-          {child.family_role !== 'spouse_partner' && (
-            <View style={styles.starsBadge}>
-              <Star size={13} color="#fbbf24" fill="#fbbf24" />
-              <Text style={styles.starsBadgeText}>{child.stars_balance ?? 0}</Text>
-            </View>
-          )}
           {child.avatar_url ? (
             <Image source={{ uri: child.avatar_url }} style={styles.avatarImg} />
           ) : (
@@ -518,19 +512,22 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               <Text style={styles.avatarFallbackText}>{name.charAt(0).toUpperCase()}</Text>
             </View>
           )}
-          <Text style={styles.profileName}>{name}</Text>
-          <View style={styles.profileMeta}>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>{name}</Text>
             {child.family_role === 'spouse_partner' ? (
               <View style={[styles.levelChip, styles.partnerChip]}>
                 <Text style={[styles.levelChipText, styles.partnerChipText]}>Partner</Text>
               </View>
-            ) : (
-              <>
-                {levelName && <View style={styles.levelChip}><Text style={styles.levelChipText}>{levelName}</Text></View>}
-                {childAge !== null && <Text style={styles.ageText}>Age {childAge}</Text>}
-              </>
-            )}
+            ) : levelName ? (
+              <View style={styles.levelChip}><Text style={styles.levelChipText}>{levelName}</Text></View>
+            ) : null}
           </View>
+          {child.family_role !== 'spouse_partner' && (
+            <View style={styles.starsBadge}>
+              <Star size={13} color="#fbbf24" fill="#fbbf24" />
+              <Text style={styles.starsBadgeText}>{child.stars_balance ?? 0}</Text>
+            </View>
+          )}
         </LinearGradient>
 
         {child.family_role !== 'spouse_partner' && (
@@ -786,28 +783,28 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 48 },
 
   profileCard: {
-    borderRadius: 20, padding: 28, alignItems: 'center',
-    marginBottom: 12, borderWidth: 1, borderColor: '#1e3a5f', position: 'relative',
+    borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    marginBottom: 12, borderWidth: 1, borderColor: '#1e3a5f',
   },
+  profileInfo: { flex: 1, gap: 6 },
   starsBadge: {
-    position: 'absolute', top: 14, right: 14,
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: '#78350f', paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: 20, borderWidth: 1, borderColor: '#b45309',
   },
   starsBadgeText: { fontFamily: 'Nunito-Bold', fontSize: 15, color: '#fbbf24' },
   avatarImg: {
-    width: 80, height: 80, borderRadius: 40,
-    marginBottom: 14, borderWidth: 3, borderColor: '#2563eb',
+    width: 56, height: 56, borderRadius: 28,
+    borderWidth: 2, borderColor: '#2563eb',
   },
   avatarCircle: {
-    width: 80, height: 80, borderRadius: 40,
+    width: 56, height: 56, borderRadius: 28,
     backgroundColor: '#2563eb', justifyContent: 'center', alignItems: 'center',
-    marginBottom: 14,
   },
-  avatarFallbackText: { fontFamily: 'Nunito-ExtraBold', fontSize: 32, color: '#fff' },
-  profileName: { fontFamily: 'Nunito-ExtraBold', fontSize: 26, color: '#f1f5f9', marginBottom: 10 },
-  profileMeta: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' },
+  avatarFallbackText: { fontFamily: 'Nunito-ExtraBold', fontSize: 22, color: '#fff' },
+  profileName: { fontFamily: 'Nunito-ExtraBold', fontSize: 20, color: '#f1f5f9' },
+  profileMeta: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   levelChip: {
     backgroundColor: '#166534', paddingHorizontal: 12, paddingVertical: 4,
     borderRadius: 20, borderWidth: 1, borderColor: '#16a34a',
