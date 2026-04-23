@@ -35,6 +35,7 @@ interface TaskCompletion {
   task_id: string;
   status: string;
   stars_earned: number;
+  note: string | null;
 }
 
 interface Reward {
@@ -75,6 +76,7 @@ export default function ChildHomeScreen() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [submitNote, setSubmitNote] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [noteModal, setNoteModal] = useState<{ task: Task; note: string; stars: number } | null>(null);
   const pagerRef = useRef<ScrollView>(null);
 
   const resolvedChildId = childId ?? activeChild?.id;
@@ -134,9 +136,16 @@ export default function ChildHomeScreen() {
     }
   }
 
-  function taskStatus(taskId: string): 'pending' | 'none' {
-    const c = completions.find(c => c.task_id === taskId && c.status === 'pending');
-    return c ? 'pending' : 'none';
+  function taskStatus(taskId: string): 'pending' | 'approved' | 'none' {
+    const pending = completions.find(c => c.task_id === taskId && c.status === 'pending');
+    if (pending) return 'pending';
+    const approved = completions.find(c => c.task_id === taskId && c.status === 'approved');
+    if (approved) return 'approved';
+    return 'none';
+  }
+
+  function taskCompletion(taskId: string): TaskCompletion | undefined {
+    return completions.find(c => c.task_id === taskId && (c.status === 'approved' || c.status === 'pending'));
   }
 
   function onPageScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -246,22 +255,34 @@ export default function ChildHomeScreen() {
             )}
             {tasks.map(task => {
               const status = taskStatus(task.id);
+              const completion = taskCompletion(task.id);
+              const hasNote = status === 'approved' && !!completion?.note;
               return (
                 <TouchableOpacity
                   key={task.id}
                   style={[styles.taskCard, status !== 'none' && styles.taskCardDone]}
-                  onPress={() => status === 'none' && setSelectedTask(task)}
-                  disabled={status !== 'none'}
+                  onPress={() => {
+                    if (status === 'none') setSelectedTask(task);
+                    else if (hasNote && completion) setNoteModal({ task, note: completion.note!, stars: completion.stars_earned });
+                  }}
+                  disabled={status === 'pending'}
                   activeOpacity={0.75}
                 >
                   <TaskIcon name={task.icon} color={task.color} />
-                  <Text style={[styles.taskTitle, status === 'pending' && styles.taskTitleMuted]} numberOfLines={1}>
+                  <Text style={[styles.taskTitle, status !== 'none' && styles.taskTitleMuted]} numberOfLines={1}>
                     {task.title}
                   </Text>
                   <View style={styles.taskRight}>
                     {status === 'pending' && (
                       <View style={styles.pendingBadge}>
                         <Text style={styles.pendingBadgeText}>Pending</Text>
+                      </View>
+                    )}
+                    {status === 'approved' && (
+                      <View style={styles.approvedBadge}>
+                        <Star size={12} color="#f59e0b" fill="#f59e0b" />
+                        <Text style={styles.approvedBadgeText}>+{completion?.stars_earned ?? task.star_reward ?? 1}</Text>
+                        {hasNote && <View style={styles.noteDot} />}
                       </View>
                     )}
                     {status === 'none' && (
@@ -392,6 +413,46 @@ export default function ChildHomeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Parent note modal */}
+      <Modal
+        visible={!!noteModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setNoteModal(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setNoteModal(null)}>
+          <Pressable style={styles.modalSheet} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <TouchableOpacity style={styles.sheetClose} onPress={() => setNoteModal(null)}>
+              <X size={18} color="#64748b" />
+            </TouchableOpacity>
+
+            <View style={[styles.modalIconWrap, { backgroundColor: (noteModal?.task.color ?? '#f59e0b') + '20', borderColor: (noteModal?.task.color ?? '#f59e0b') + '40' }]}>
+              {(() => {
+                const IconComp = noteModal?.task.icon ? (ICON_MAP[noteModal.task.icon] ?? Star) : Star;
+                return <IconComp size={36} color={noteModal?.task.color ?? '#f59e0b'} strokeWidth={1.5} />;
+              })()}
+            </View>
+
+            <Text style={styles.modalTaskTitle}>{noteModal?.task.title}</Text>
+
+            <View style={styles.modalStarsPill}>
+              <Star size={18} color="#f59e0b" fill="#f59e0b" />
+              <Text style={styles.modalStarsText}>+{noteModal?.stars} stars earned!</Text>
+            </View>
+
+            <View style={styles.noteFromParent}>
+              <Text style={styles.noteFromParentLabel}>Message from your parent</Text>
+              <Text style={styles.noteFromParentText}>{noteModal?.note}</Text>
+            </View>
+
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setNoteModal(null)}>
+              <Text style={styles.cancelBtnText}>Close</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -486,6 +547,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#1c1a0e', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
   },
   pendingBadgeText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#f59e0b' },
+  approvedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#0d1f12', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+  },
+  approvedBadgeText: { fontFamily: 'Nunito-ExtraBold', fontSize: 13, color: '#4ade80' },
+  noteDot: {
+    width: 6, height: 6, borderRadius: 3, backgroundColor: '#60a5fa', marginLeft: 2,
+  },
   rewardThumb: { width: 42, height: 42, borderRadius: 10 },
   emptyCard: {
     backgroundColor: '#131c2e', borderRadius: 14, padding: 24,
@@ -560,4 +629,16 @@ const styles = StyleSheet.create({
   submitBtnText: { fontFamily: 'Nunito-ExtraBold', fontSize: 17, color: '#000' },
   cancelBtn: { paddingVertical: 10 },
   cancelBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: '#475569' },
+  noteFromParent: {
+    width: '100%', backgroundColor: '#0d1a2e', borderRadius: 14,
+    borderWidth: 1, borderColor: '#1e3a5f',
+    padding: 16, marginBottom: 24, marginTop: 8,
+  },
+  noteFromParentLabel: {
+    fontFamily: 'Inter-SemiBold', fontSize: 11, color: '#60a5fa',
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8,
+  },
+  noteFromParentText: {
+    fontFamily: 'Inter-Regular', fontSize: 15, color: '#e2e8f0', lineHeight: 22,
+  },
 });

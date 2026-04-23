@@ -27,7 +27,7 @@ import {
   MoreVertical,
   Music,
   Bed,
-  Tooth,
+  Zap,
   Utensils,
   BookOpen,
   Dumbbell,
@@ -129,7 +129,7 @@ interface Contact {
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 const ICON_MAP: Record<string, FC<LucideProps>> = {
-  Music, Bed, Tooth, Utensils, Trash2, BookOpen, Dumbbell, Bike,
+  Music, Bed, Zap, Utensils, Trash2, BookOpen, Dumbbell, Bike,
   ShoppingCart, Dog, Brush, Heart, Leaf, Sun, Moon, Smile,
   Gamepad2, Bath, Star, Gift,
 };
@@ -324,7 +324,7 @@ function ContactDetail({ contact }: { contact: Contact }) {
 
 const EDIT_ICONS: { key: string; Icon: FC<LucideProps> }[] = [
   { key: 'Utensils', Icon: Utensils },
-  { key: 'Tooth', Icon: Tooth },
+  { key: 'Zap', Icon: Zap },
   { key: 'Music', Icon: Music },
   { key: 'Bed', Icon: Bed },
   { key: 'BookOpen', Icon: BookOpen },
