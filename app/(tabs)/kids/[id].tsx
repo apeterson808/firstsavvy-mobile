@@ -19,7 +19,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft,
   Star,
-  Clock,
   CircleCheck,
   CircleX,
   Pencil,
@@ -474,7 +473,6 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
   const name = childDisplayName(child);
   const childAge = calcAge(child.date_of_birth);
-  const pendingApprovals = completions.filter(c => c.status === 'pending');
 
   return (
     <>
@@ -528,40 +526,6 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
           </View>
         </LinearGradient>
 
-        {child.family_role !== 'spouse_partner' && pendingApprovals.length > 0 && (
-          <View style={styles.approvalBanner}>
-            <View style={styles.approvalBannerHeader}>
-              <Clock size={15} color="#fbbf24" />
-              <Text style={styles.approvalBannerTitle}>Needs Approval</Text>
-              <View style={styles.badge}><Text style={styles.badgeText}>{pendingApprovals.length}</Text></View>
-            </View>
-            {pendingApprovals.map(c => {
-              const task = tasks.find(t => t.id === c.task_id);
-              const busy = actionLoading === c.id;
-              return (
-                <View key={c.id} style={styles.approvalRow}>
-                  <TaskIcon name={task?.icon ?? null} color={task?.color ?? null} />
-                  <View style={styles.approvalInfo}>
-                    <Text style={styles.approvalTitle}>{task?.title ?? 'Task'}</Text>
-                    <View style={styles.starRow}>
-                      <Star size={10} color="#fbbf24" fill="#fbbf24" />
-                      <Text style={styles.approvalStars}>{c.stars_earned} star{c.stars_earned !== 1 ? 's' : ''}</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity style={[styles.approvalBtn, styles.approvalRejectBtn]} onPress={() => rejectCompletion(c.id)} disabled={busy}>
-                    <CircleX size={13} color="#f87171" />
-                    <Text style={styles.approvalRejectText}>Reject</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.approvalBtn, styles.approvalApproveBtn]} onPress={() => approveCompletion(c.id)} disabled={busy}>
-                    {busy ? <ActivityIndicator size={12} color="#fff" /> : <CircleCheck size={13} color="#fff" />}
-                    <Text style={styles.approvalApproveText}>Approve</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
         {child.family_role !== 'spouse_partner' && (
           <View style={styles.tabsCard}>
             <View style={styles.tabBar} onLayout={e => { tabBarWidth.current = e.nativeEvent.layout.width; }}>
@@ -576,13 +540,17 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             {activeTab === 'Tasks' && (
               <View>
                 {tasks.length === 0 && <Text style={styles.emptyMsg}>No tasks assigned yet.</Text>}
-                {tasks.map((task, idx) => {
+                {[...tasks].sort((a, b) => {
+                  const aPending = latestActiveCompletion(a.id)?.status === 'pending' ? 0 : 1;
+                  const bPending = latestActiveCompletion(b.id)?.status === 'pending' ? 0 : 1;
+                  return aPending - bPending;
+                }).map((task, idx) => {
                   const completion = latestActiveCompletion(task.id);
                   const isPending = completion?.status === 'pending';
                   const isApproved = completion?.status === 'approved';
                   const busyAward = actionLoading === 'award-' + task.id;
                   return (
-                    <View key={task.id} style={[styles.taskRow, idx > 0 && styles.taskRowBorder]}>
+                    <View key={task.id} style={[styles.taskRow, idx > 0 && styles.taskRowBorder, isPending && styles.taskRowPending]}>
                       <TaskIcon name={task.icon} color={task.color} />
                       <View style={styles.taskMeta}>
                         <Text style={styles.taskTitle} numberOfLines={1}>{task.title}</Text>
@@ -814,30 +782,6 @@ const styles = StyleSheet.create({
   groupChipText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#93c5fd' },
   ageText: { fontFamily: 'Inter-Regular', fontSize: 14, color: '#64748b' },
 
-  approvalBanner: {
-    backgroundColor: '#1c1a0e', borderRadius: 14, padding: 14,
-    marginBottom: 12, borderWidth: 1, borderColor: '#78350f',
-  },
-  approvalBannerHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 10 },
-  approvalBannerTitle: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#fbbf24', flex: 1 },
-  badge: { backgroundColor: '#7c3500', paddingHorizontal: 7, paddingVertical: 1, borderRadius: 10 },
-  badgeText: { fontFamily: 'Inter-Bold', fontSize: 11, color: '#fbbf24' },
-  approvalRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#2d1f00',
-  },
-  approvalInfo: { flex: 1 },
-  approvalTitle: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#f1f5f9' },
-  approvalStars: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#92400e' },
-  approvalBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 9, paddingVertical: 5, borderRadius: 7,
-  },
-  approvalRejectBtn: { backgroundColor: '#2d0a0a', borderWidth: 1, borderColor: '#7f1d1d' },
-  approvalRejectText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#f87171' },
-  approvalApproveBtn: { backgroundColor: '#166534' },
-  approvalApproveText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#fff' },
-
   tabsCard: {
     backgroundColor: '#1e293b', borderRadius: 16,
     borderWidth: 1, borderColor: '#334155', overflow: 'hidden',
@@ -863,6 +807,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 11, gap: 10,
   },
   taskRowBorder: { borderTopWidth: 1, borderTopColor: '#0f172a' },
+  taskRowPending: { borderLeftWidth: 3, borderLeftColor: '#f59e0b', paddingLeft: 11 },
   taskIconWrap: {
     width: 36, height: 36, borderRadius: 10,
     justifyContent: 'center', alignItems: 'center', flexShrink: 0,
