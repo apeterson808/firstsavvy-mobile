@@ -194,7 +194,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={child.id}
                   style={styles.kidCard}
-                  onPress={() => router.push('/(tabs)/kids')}
+                  onPress={() => router.push(`/(tabs)/kids/${child.id}`)}
                 >
                   <View style={styles.kidAvatar}>
                     <Text style={styles.kidInitial}>
