@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -45,6 +46,7 @@ export default function DashboardScreen() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [children, setChildren] = useState<ChildProfile[]>([]);
+  const [pendingByChild, setPendingByChild] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -75,9 +77,24 @@ export default function DashboardScreen() {
         .eq('parent_profile_id', profile.id)
         .eq('is_active', true),
     ]);
+    const kids = childRes.data ?? [];
     setAccounts(acctRes.data ?? []);
     setTransactions(txRes.data ?? []);
-    setChildren(childRes.data ?? []);
+    setChildren(kids);
+
+    if (kids.length > 0) {
+      const childIds = kids.map(k => k.id);
+      const { data: pendingData } = await supabase
+        .from('task_completions')
+        .select('child_profile_id')
+        .in('child_profile_id', childIds)
+        .eq('status', 'pending');
+      const counts: Record<string, number> = {};
+      for (const row of pendingData ?? []) {
+        counts[row.child_profile_id] = (counts[row.child_profile_id] ?? 0) + 1;
+      }
+      setPendingByChild(counts);
+    }
     setLoading(false);
     setRefreshing(false);
   }
@@ -196,10 +213,23 @@ export default function DashboardScreen() {
                   style={styles.kidCard}
                   onPress={() => router.push(`/(tabs)/kids/${child.id}`)}
                 >
-                  <View style={styles.kidAvatar}>
-                    <Text style={styles.kidInitial}>
-                      {(child.display_name ?? child.child_name).charAt(0).toUpperCase()}
-                    </Text>
+                  <View style={styles.kidAvatarWrap}>
+                    {child.avatar_url ? (
+                      <Image source={{ uri: child.avatar_url }} style={styles.kidAvatarImg} />
+                    ) : (
+                      <View style={styles.kidAvatar}>
+                        <Text style={styles.kidInitial}>
+                          {(child.display_name ?? child.child_name).charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    {(pendingByChild[child.id] ?? 0) > 0 && (
+                      <View style={styles.pendingBadge}>
+                        <Text style={styles.pendingBadgeText}>
+                          {pendingByChild[child.id]}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={styles.kidName} numberOfLines={1}>
                     {child.display_name ?? child.child_name}
@@ -275,10 +305,21 @@ const styles = StyleSheet.create({
   txAmount: { fontFamily: 'Inter-SemiBold', fontSize: 14 },
   kidsRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
   kidCard: { alignItems: 'center', width: 80 },
+  kidAvatarWrap: { position: 'relative', marginBottom: 6 },
   kidAvatar: {
     width: 56, height: 56, borderRadius: 28,
-    backgroundColor: '#2563eb', justifyContent: 'center', alignItems: 'center', marginBottom: 6,
+    backgroundColor: '#2563eb', justifyContent: 'center', alignItems: 'center',
   },
+  kidAvatarImg: {
+    width: 56, height: 56, borderRadius: 28,
+  },
+  pendingBadge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: '#ef4444', borderWidth: 2, borderColor: '#1e293b',
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3,
+  },
+  pendingBadgeText: { fontFamily: 'Inter-Bold', fontSize: 10, color: '#fff' },
   kidInitial: { fontFamily: 'Nunito-Bold', fontSize: 22, color: '#fff' },
   kidName: { fontFamily: 'Inter-Medium', fontSize: 12, color: '#cbd5e1', textAlign: 'center' },
   kidStars: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
