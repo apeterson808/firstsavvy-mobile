@@ -77,7 +77,8 @@ Deno.serve(async (req: Request) => {
       supabase
         .from("task_completions")
         .select("id, task_id, status, stars_earned, note")
-        .eq("child_profile_id", childId),
+        .eq("child_profile_id", childId)
+        .gte("created_at", new Date(new Date().toLocaleDateString('en-CA')).toISOString()),
       supabase
         .from("rewards")
         .select("id, title, star_cost, image_url, icon, color")
