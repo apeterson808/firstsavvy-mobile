@@ -52,6 +52,7 @@ import {
   Tag,
   FileText,
   ExternalLink,
+  Check,
   type LucideProps,
 } from 'lucide-react-native';
 import type { FC } from 'react';
@@ -320,6 +321,35 @@ function ContactDetail({ contact }: { contact: Contact }) {
 
 // ─── Child detail ─────────────────────────────────────────────────────────────
 
+const EDIT_ICONS: { key: string; Icon: FC<LucideProps> }[] = [
+  { key: 'Utensils', Icon: Utensils },
+  { key: 'Tooth', Icon: Tooth },
+  { key: 'Music', Icon: Music },
+  { key: 'Bed', Icon: Bed },
+  { key: 'BookOpen', Icon: BookOpen },
+  { key: 'Dumbbell', Icon: Dumbbell },
+  { key: 'Bike', Icon: Bike },
+  { key: 'ShoppingCart', Icon: ShoppingCart },
+  { key: 'Dog', Icon: Dog },
+  { key: 'Brush', Icon: Brush },
+  { key: 'Heart', Icon: Heart },
+  { key: 'Leaf', Icon: Leaf },
+  { key: 'Sun', Icon: Sun },
+  { key: 'Moon', Icon: Moon },
+  { key: 'Smile', Icon: Smile },
+  { key: 'Gamepad2', Icon: Gamepad2 },
+  { key: 'Bath', Icon: Bath },
+  { key: 'Gift', Icon: Gift },
+  { key: 'Star', Icon: Star },
+  { key: 'Trash2', Icon: Trash2 },
+];
+
+const EDIT_COLORS = [
+  '#f59e0b', '#ef4444', '#10b981', '#3b82f6',
+  '#06b6d4', '#8b5cf6', '#ec4899', '#f97316',
+  '#84cc16', '#64748b',
+];
+
 const TABS = ['Tasks', 'Rewards', 'Activity'] as const;
 type Tab = typeof TABS[number];
 
@@ -340,6 +370,14 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   const [awardModal, setAwardModal] = useState<{ task: Task } | null>(null);
   const [awardStarsInput, setAwardStarsInput] = useState('0');
   const [awardNote, setAwardNote] = useState('');
+
+  const [editSheet, setEditSheet] = useState<Task | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editIcon, setEditIcon] = useState<string | null>(null);
+  const [editColor, setEditColor] = useState<string | null>(null);
+  const [editStars, setEditStars] = useState('1');
+  const [editSaving, setEditSaving] = useState(false);
 
   const tabUnderlineX = useRef(new Animated.Value(0)).current;
   const tabBarWidth = useRef(0);
@@ -449,8 +487,39 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
     setActionLoading(null);
   }
 
+  function openEditSheet(task: Task) {
+    setEditTitle(task.title);
+    setEditDescription(task.description ?? '');
+    setEditIcon(task.icon);
+    setEditColor(task.color);
+    setEditStars(String(task.star_reward ?? 1));
+    setEditSheet(task);
+  }
+
+  async function saveEdit() {
+    if (!editSheet || !editTitle.trim()) return;
+    setEditSaving(true);
+    await supabase.from('tasks').update({
+      title: editTitle.trim(),
+      description: editDescription.trim() || null,
+      icon: editIcon,
+      color: editColor,
+      star_reward: Math.max(0, parseInt(editStars, 10) || 0),
+    }).eq('id', editSheet.id);
+    setEditSheet(null);
+    setEditSaving(false);
+    await load();
+  }
+
   function openMenu(itemId: string, type: 'task' | 'reward') { setMenu({ visible: true, itemId, type }); }
   function closeMenu() { setMenu({ visible: false, itemId: null, type: 'task' }); }
+
+  function handleMenuEdit() {
+    if (!menu.itemId || menu.type !== 'task') { closeMenu(); return; }
+    const task = tasks.find(t => t.id === menu.itemId);
+    closeMenu();
+    if (task) openEditSheet(task);
+  }
 
   function handleMenuDelete() {
     closeMenu();
@@ -500,7 +569,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
       <Modal transparent visible={menu.visible} animationType="fade" onRequestClose={closeMenu}>
         <Pressable style={styles.menuOverlay} onPress={closeMenu}>
           <View style={styles.menuPopover}>
-            <TouchableOpacity style={styles.menuItem} onPress={closeMenu}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleMenuEdit}>
               <Pencil size={15} color="#60a5fa" />
               <Text style={styles.menuItemText}>Edit</Text>
             </TouchableOpacity>
@@ -573,6 +642,117 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.awardCancelBtn} onPress={() => setAwardModal(null)}>
+              <Text style={styles.awardCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal transparent visible={!!editSheet} animationType="slide" onRequestClose={() => setEditSheet(null)}>
+        <Pressable style={styles.sheetOverlay} onPress={() => setEditSheet(null)}>
+          <Pressable style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]} onPress={() => {}}>
+            <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
+            <TouchableOpacity style={styles.sheetClose} onPress={() => setEditSheet(null)}>
+              <CircleX size={18} color="#64748b" />
+            </TouchableOpacity>
+
+            <Text style={[styles.sheetTitle, { textAlign: 'left', fontSize: 20, marginBottom: 20 }]}>Edit Task</Text>
+
+            {/* Title */}
+            <Text style={styles.editLabel}>Title</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editTitle}
+              onChangeText={setEditTitle}
+              placeholder="Task title"
+              placeholderTextColor="#475569"
+              returnKeyType="next"
+            />
+
+            {/* Description */}
+            <Text style={styles.editLabel}>Description (optional)</Text>
+            <TextInput
+              style={[styles.editInput, { minHeight: 60, textAlignVertical: 'top' }]}
+              value={editDescription}
+              onChangeText={setEditDescription}
+              placeholder="Short description..."
+              placeholderTextColor="#475569"
+              multiline
+              returnKeyType="done"
+            />
+
+            {/* Stars */}
+            <Text style={styles.editLabel}>Stars</Text>
+            <View style={styles.editStarRow}>
+              <TouchableOpacity style={styles.awardStepBtn} onPress={() => setEditStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
+                <Text style={styles.awardStepBtnText}>−</Text>
+              </TouchableOpacity>
+              <View style={styles.editStarInputWrap}>
+                <Star size={15} color="#f59e0b" fill="#f59e0b" />
+                <TextInput
+                  style={styles.awardStarInput}
+                  value={editStars}
+                  onChangeText={v => setEditStars(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  selectTextOnFocus
+                />
+              </View>
+              <TouchableOpacity style={styles.awardStepBtn} onPress={() => setEditStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
+                <Text style={styles.awardStepBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Icon picker */}
+            <Text style={styles.editLabel}>Icon</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+              {EDIT_ICONS.map(({ key, Icon }) => {
+                const selected = editIcon === key;
+                const color = editColor ?? '#60a5fa';
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.iconPickerItem, selected && { borderColor: color, backgroundColor: color + '20' }]}
+                    onPress={() => setEditIcon(key)}
+                    activeOpacity={0.7}
+                  >
+                    <Icon size={20} color={selected ? color : '#64748b'} strokeWidth={1.8} />
+                    {selected && <View style={[styles.iconPickerCheck, { backgroundColor: color }]}><Check size={8} color="#fff" /></View>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Color picker */}
+            <Text style={styles.editLabel}>Color</Text>
+            <View style={styles.colorPickerRow}>
+              {EDIT_COLORS.map(c => {
+                const selected = editColor === c;
+                return (
+                  <TouchableOpacity
+                    key={c}
+                    style={[styles.colorSwatch, { backgroundColor: c }, selected && styles.colorSwatchSelected]}
+                    onPress={() => setEditColor(c)}
+                    activeOpacity={0.7}
+                  >
+                    {selected && <Check size={12} color="#fff" strokeWidth={3} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.awardConfirmBtn, { marginTop: 24, backgroundColor: '#2563eb' }, (!editTitle.trim() || editSaving) && { opacity: 0.5 }]}
+              onPress={saveEdit}
+              disabled={!editTitle.trim() || editSaving}
+              activeOpacity={0.85}
+            >
+              {editSaving
+                ? <ActivityIndicator color="#fff" size={18} />
+                : <><Check size={18} color="#fff" strokeWidth={2.5} /><Text style={[styles.awardConfirmText, { color: '#fff' }]}>Save Changes</Text></>
+              }
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.awardCancelBtn} onPress={() => setEditSheet(null)}>
               <Text style={styles.awardCancelText}>Cancel</Text>
             </TouchableOpacity>
           </Pressable>
@@ -1084,6 +1264,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#f59e0b', marginBottom: 12,
   },
   awardConfirmText: { fontFamily: 'Nunito-ExtraBold', fontSize: 18, color: '#000' },
-  awardCancelBtn: { paddingVertical: 10 },
+  awardCancelBtn: { paddingVertical: 10, alignSelf: 'center' },
   awardCancelText: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: '#475569' },
+
+  editLabel: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
+  editInput: {
+    backgroundColor: '#0f1e33', borderWidth: 1, borderColor: '#1e3a5f',
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+    fontFamily: 'Inter-Regular', fontSize: 14, color: '#e2e8f0',
+    marginBottom: 16,
+  },
+  editStarRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  editStarInputWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#0f1e33', borderWidth: 1, borderColor: '#f59e0b40',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 6,
+  },
+  iconPickerItem: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: '#0f1e33', borderWidth: 1.5, borderColor: '#1e3a5f',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  iconPickerCheck: {
+    position: 'absolute', top: -4, right: -4,
+    width: 14, height: 14, borderRadius: 7,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  colorPickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
+  colorSwatch: {
+    width: 32, height: 32, borderRadius: 16,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  colorSwatchSelected: { borderWidth: 2.5, borderColor: '#fff' },
 });
