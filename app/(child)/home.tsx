@@ -13,6 +13,7 @@ import {
   NativeScrollEvent,
   Modal,
   Pressable,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -72,6 +73,8 @@ export default function ChildHomeScreen() {
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [activePage, setActivePage] = useState(0);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [submitNote, setSubmitNote] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const pagerRef = useRef<ScrollView>(null);
 
   const resolvedChildId = childId ?? activeChild?.id;
@@ -98,19 +101,37 @@ export default function ChildHomeScreen() {
   async function submitCompletion() {
     if (!resolvedChildId || !selectedTask) return;
     setSubmitting(selectedTask.id);
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-    await fetch(`${supabaseUrl}/functions/v1/get-child-data`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${supabaseAnonKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ childId: resolvedChildId, taskId: selectedTask.id, starsEarned: selectedTask.star_reward ?? 1 }),
-    });
-    setSubmitting(null);
-    setSelectedTask(null);
-    load();
+    setSubmitError(null);
+    try {
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+      const res = await fetch(`${supabaseUrl}/functions/v1/get-child-data`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          childId: resolvedChildId,
+          taskId: selectedTask.id,
+          starsEarned: selectedTask.star_reward ?? 1,
+          note: submitNote.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        setSubmitError(json.error ?? 'Something went wrong. Try again.');
+        setSubmitting(null);
+        return;
+      }
+      setSubmitting(null);
+      setSelectedTask(null);
+      setSubmitNote('');
+      load();
+    } catch {
+      setSubmitError('Network error. Please try again.');
+      setSubmitting(null);
+    }
   }
 
   function taskStatus(taskId: string): 'pending' | 'none' {
@@ -305,15 +326,15 @@ export default function ChildHomeScreen() {
         visible={!!selectedTask}
         transparent
         animationType="slide"
-        onRequestClose={() => setSelectedTask(null)}
+        onRequestClose={() => { setSelectedTask(null); setSubmitNote(''); setSubmitError(null); }}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setSelectedTask(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => { setSelectedTask(null); setSubmitNote(''); setSubmitError(null); }}>
           <Pressable style={styles.modalSheet} onPress={() => {}}>
             {/* Handle bar */}
             <View style={styles.sheetHandle} />
 
             {/* Close button */}
-            <TouchableOpacity style={styles.sheetClose} onPress={() => setSelectedTask(null)}>
+            <TouchableOpacity style={styles.sheetClose} onPress={() => { setSelectedTask(null); setSubmitNote(''); setSubmitError(null); }}>
               <X size={18} color="#64748b" />
             </TouchableOpacity>
 
@@ -339,9 +360,24 @@ export default function ChildHomeScreen() {
               </Text>
             </View>
 
-            <Text style={styles.modalNote}>
-              Your parent will review and approve your submission.
-            </Text>
+            {/* Optional note to parent */}
+            <TextInput
+              style={styles.noteInput}
+              placeholder="Add a note for your parent... (optional)"
+              placeholderTextColor="#475569"
+              value={submitNote}
+              onChangeText={setSubmitNote}
+              maxLength={200}
+              returnKeyType="done"
+            />
+
+            {submitError ? (
+              <Text style={styles.modalError}>{submitError}</Text>
+            ) : (
+              <Text style={styles.modalNote}>
+                Your parent will review and approve your submission.
+              </Text>
+            )}
 
             {/* Submit button */}
             <TouchableOpacity
@@ -360,8 +396,8 @@ export default function ChildHomeScreen() {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setSelectedTask(null)}>
-              <Text style={styles.cancelBtnText}>Not yet</Text>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => { setSelectedTask(null); setSubmitNote(''); setSubmitError(null); }}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -510,8 +546,18 @@ const styles = StyleSheet.create({
   modalStarsText: {
     fontFamily: 'Nunito-ExtraBold', fontSize: 20, color: '#f59e0b',
   },
+  noteInput: {
+    width: '100%', backgroundColor: '#0f1e33', borderWidth: 1, borderColor: '#1e3a5f',
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+    fontFamily: 'Inter-Regular', fontSize: 14, color: '#e2e8f0',
+    marginBottom: 14,
+  },
   modalNote: {
     fontFamily: 'Inter-Regular', fontSize: 13, color: '#475569',
+    textAlign: 'center', marginBottom: 28, paddingHorizontal: 16,
+  },
+  modalError: {
+    fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#f87171',
     textAlign: 'center', marginBottom: 28, paddingHorizontal: 16,
   },
   submitBtn: {

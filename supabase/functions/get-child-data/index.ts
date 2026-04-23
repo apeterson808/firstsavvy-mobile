@@ -19,9 +19,9 @@ Deno.serve(async (req: Request) => {
 
     const url = new URL(req.url);
 
-    // POST /get-child-data/complete-task — submit a task completion
+    // POST — submit a task completion
     if (req.method === "POST") {
-      const { childId, taskId, starsEarned } = await req.json();
+      const { childId, taskId, starsEarned, note } = await req.json();
       if (!childId || !taskId) {
         return new Response(JSON.stringify({ error: "childId and taskId are required" }), {
           status: 400,
@@ -29,12 +29,17 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      const { error } = await supabase.from("task_completions").insert({
+      const record: Record<string, unknown> = {
         child_profile_id: childId,
         task_id: taskId,
         status: "pending_approval",
         stars_earned: starsEarned ?? 1,
-      });
+      };
+      if (note && typeof note === "string" && note.trim()) {
+        record.note = note.trim();
+      }
+
+      const { error } = await supabase.from("task_completions").insert(record);
 
       if (error) {
         return new Response(JSON.stringify({ error: error.message }), {
@@ -48,7 +53,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // GET /get-child-data?childId=... — fetch all child data
+    // GET — fetch all child data
     const childId = url.searchParams.get("childId");
     if (!childId) {
       return new Response(JSON.stringify({ error: "childId is required" }), {
@@ -71,7 +76,7 @@ Deno.serve(async (req: Request) => {
         .order("created_at", { ascending: true }),
       supabase
         .from("task_completions")
-        .select("id, task_id, status, stars_earned")
+        .select("id, task_id, status, stars_earned, note")
         .eq("child_profile_id", childId),
       supabase
         .from("rewards")
