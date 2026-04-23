@@ -840,7 +840,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                         </>
                       ) : (
                         <TouchableOpacity style={[styles.compactBtn, styles.awardBtn, isApproved && styles.awardBtnDim]} onPress={() => openAwardModal(task)} disabled={busyAward}>
-                          {busyAward ? <ActivityIndicator size={12} color="#000" /> : <Star size={13} color="#000" fill="#000" />}
+                          {busyAward ? <ActivityIndicator size={12} color="#1a0f00" /> : <Star size={13} color="#1a0f00" fill="#1a0f00" />}
                           <Text style={styles.awardBtnText}>Award</Text>
                         </TouchableOpacity>
                       )}
@@ -1127,9 +1127,17 @@ const styles = StyleSheet.create({
   rejectBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#f87171' },
   approveBtn: { backgroundColor: '#166534' },
   approveBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#fff' },
-  awardBtn: { backgroundColor: '#f59e0b', borderWidth: 0 },
+  awardBtn: {
+    backgroundColor: '#FACC15',
+    borderWidth: 0,
+    shadowColor: '#FACC15',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   awardBtnDim: { opacity: 0.45 },
-  awardBtnText: { fontFamily: 'Inter-Bold', fontSize: 12, color: '#000' },
+  awardBtnText: { fontFamily: 'Inter-Bold', fontSize: 12, color: '#1a0f00' },
 
   rewardCard: { paddingHorizontal: 14, paddingVertical: 12 },
   rewardThumb: { width: 36, height: 36, borderRadius: 8, flexShrink: 0 },
