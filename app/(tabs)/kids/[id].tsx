@@ -519,7 +519,10 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                 <Text style={[styles.levelChipText, styles.partnerChipText]}>Partner</Text>
               </View>
             ) : levelName ? (
-              <View style={styles.levelChip}><Text style={styles.levelChipText}>{levelName}</Text></View>
+              <View style={styles.levelChip}>
+                <View style={styles.levelDot} />
+                <Text style={styles.levelChipText}>{levelName}</Text>
+              </View>
             ) : null}
           </View>
           {child.family_role !== 'spouse_partner' && (
@@ -806,12 +809,12 @@ const styles = StyleSheet.create({
   profileName: { fontFamily: 'Nunito-ExtraBold', fontSize: 20, color: '#f1f5f9' },
   profileMeta: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   levelChip: {
-    backgroundColor: '#166534', paddingHorizontal: 12, paddingVertical: 4,
-    borderRadius: 20, borderWidth: 1, borderColor: '#16a34a',
+    flexDirection: 'row', alignItems: 'center', gap: 5,
   },
-  levelChipText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#4ade80' },
-  partnerChip: { backgroundColor: '#1e3a5f', borderColor: '#3b82f6' },
-  partnerChipText: { color: '#93c5fd' },
+  levelChipText: { fontFamily: 'Inter-Medium', fontSize: 13, color: '#64748b' },
+  levelDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' },
+  partnerChip: {},
+  partnerChipText: { color: '#64748b' },
   groupChip: {
     backgroundColor: '#1e3a5f', paddingHorizontal: 12, paddingVertical: 4,
     borderRadius: 20, borderWidth: 1, borderColor: '#3b82f6',
