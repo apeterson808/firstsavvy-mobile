@@ -474,7 +474,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
   const name = childDisplayName(child);
   const childAge = calcAge(child.date_of_birth);
-  const pendingApprovals = completions.filter(c => c.status === 'pending_approval');
+  const pendingApprovals = completions.filter(c => c.status === 'pending');
 
   return (
     <>
@@ -578,7 +578,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                 {tasks.length === 0 && <Text style={styles.emptyMsg}>No tasks assigned yet.</Text>}
                 {tasks.map((task, idx) => {
                   const completion = latestActiveCompletion(task.id);
-                  const isPending = completion?.status === 'pending_approval';
+                  const isPending = completion?.status === 'pending';
                   const isApproved = completion?.status === 'approved';
                   const busyAward = actionLoading === 'award-' + task.id;
                   return (

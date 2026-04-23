@@ -135,7 +135,7 @@ export default function ChildHomeScreen() {
   }
 
   function taskStatus(taskId: string): 'pending' | 'none' {
-    const c = completions.find(c => c.task_id === taskId && c.status === 'pending_approval');
+    const c = completions.find(c => c.task_id === taskId && c.status === 'pending');
     return c ? 'pending' : 'none';
   }
 

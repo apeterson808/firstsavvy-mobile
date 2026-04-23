@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
       const record: Record<string, unknown> = {
         child_profile_id: childId,
         task_id: taskId,
-        status: "pending_approval",
+        status: "pending",
         stars_earned: starsEarned ?? 1,
       };
       if (note && typeof note === "string" && note.trim()) {
