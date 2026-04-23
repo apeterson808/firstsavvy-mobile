@@ -335,6 +335,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   const [activeTab, setActiveTab] = useState<Tab>('Tasks');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuState>({ visible: false, itemId: null, type: 'task' });
+  const [activityLimit, setActivityLimit] = useState(10);
 
   const tabUnderlineX = useRef(new Animated.Value(0)).current;
   const tabBarWidth = useRef(0);
@@ -385,6 +386,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
       setLevelName((lvl as PermissionLevel | null)?.level_name ?? null);
     }
 
+    setActivityLimit(10);
     setLoading(false);
     setRefreshing(false);
   }
@@ -593,7 +595,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             {activeTab === 'Activity' && (
               <View>
                 {completions.length === 0 && <Text style={styles.emptyMsg}>No activity yet.</Text>}
-                {completions.map((c, idx) => {
+                {completions.slice(0, activityLimit).map((c, idx) => {
                   const task = tasks.find(t => t.id === c.task_id);
                   const date = new Date(c.created_at);
                   const label = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -615,6 +617,11 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                     </View>
                   );
                 })}
+                {completions.length > activityLimit && (
+                  <TouchableOpacity style={styles.loadMoreBtn} onPress={() => setActivityLimit(n => n + 10)} activeOpacity={0.7}>
+                    <Text style={styles.loadMoreText}>Load more ({completions.length - activityLimit} remaining)</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
@@ -903,6 +910,12 @@ const styles = StyleSheet.create({
   activityDotPending: { backgroundColor: '#fbbf24' },
   activityDotRejected: { backgroundColor: '#f87171' },
   activityTime: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#64748b', marginTop: 2 },
+  loadMoreBtn: {
+    marginHorizontal: 14, marginVertical: 12, paddingVertical: 10,
+    borderRadius: 10, backgroundColor: '#0f172a',
+    borderWidth: 1, borderColor: '#334155', alignItems: 'center',
+  },
+  loadMoreText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#60a5fa' },
   statusApproved: { backgroundColor: '#052e16' },
   statusApprovedText: { color: '#4ade80' },
   statusPending: { backgroundColor: '#1c1a0e' },
