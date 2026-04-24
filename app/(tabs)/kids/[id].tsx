@@ -447,12 +447,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
   async function approveCompletion(completionId: string) {
     setActionLoading(completionId);
-    const completion = completions.find(c => c.id === completionId);
-    const starsEarned = completion?.stars_earned ?? 0;
-    await supabase.from('task_completions').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', completionId);
-    if (starsEarned > 0) {
-      await supabase.from('child_profiles').update({ stars_balance: (child?.stars_balance ?? 0) + starsEarned }).eq('id', childId);
-    }
+    await supabase.rpc('approve_task_completion', { p_completion_id: completionId });
     await load();
     setActionLoading(null);
   }
@@ -519,6 +514,9 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
       color: editColor,
       star_reward: Math.max(0, parseInt(editStars, 10) || 0),
       reset_mode: editResetMode,
+      // legacy web-app fields kept in sync with reset_mode
+      frequency: editResetMode === 'instant' ? 'always_available' : 'once',
+      repeatable: editResetMode === 'instant',
     }).eq('id', editSheet.id);
     setEditSheet(null);
     setEditSaving(false);
@@ -545,6 +543,10 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
       color: createColor,
       star_reward: Math.max(0, parseInt(createStars, 10) || 0),
       reset_mode: createResetMode,
+      // legacy web-app fields kept in sync with reset_mode
+      frequency: createResetMode === 'instant' ? 'always_available' : 'once',
+      repeatable: createResetMode === 'instant',
+      requires_approval: true,
       assigned_to_child_id: childId,
       profile_id: profile.id,
       is_active: true,
