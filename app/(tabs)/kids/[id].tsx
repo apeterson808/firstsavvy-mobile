@@ -363,6 +363,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   const [levelName, setLevelName] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completions, setCompletions] = useState<Completion[]>([]);
+  const [activityCompletions, setActivityCompletions] = useState<Completion[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -398,7 +399,9 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   useEffect(() => { load(); }, [childId]);
 
   async function load() {
-    const [childRes, taskRes, completionRes, rewardRes] = await Promise.all([
+    const todayStart = new Date(new Date().toLocaleDateString('en-CA')).toISOString();
+
+    const [childRes, taskRes, completionRes, activityRes, rewardRes] = await Promise.all([
       supabase
         .from('child_profiles')
         .select('id, child_name, first_name, last_name, display_name, date_of_birth, stars_balance, cash_balance, current_permission_level, avatar_url, family_role')
@@ -409,6 +412,12 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
         .select('id, title, description, icon, color, star_reward, reset_mode')
         .eq('assigned_to_child_id', childId)
         .eq('is_active', true)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('task_completions')
+        .select('id, task_id, status, stars_earned, note, created_at')
+        .eq('child_profile_id', childId)
+        .gte('created_at', todayStart)
         .order('created_at', { ascending: false }),
       supabase
         .from('task_completions')
@@ -429,6 +438,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
     setChild(childData);
     setTasks(taskRes.data ?? []);
     setCompletions(completionRes.data ?? []);
+    setActivityCompletions(activityRes.data ?? []);
     setRewards(rewardRes.data ?? []);
 
     if (childData?.current_permission_level != null) {
@@ -1059,8 +1069,8 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
             {activeTab === 'Activity' && (
               <View>
-                {completions.length === 0 && <Text style={styles.emptyMsg}>No activity yet.</Text>}
-                {completions.slice(0, activityLimit).map((c, idx) => {
+                {activityCompletions.length === 0 && <Text style={styles.emptyMsg}>No activity yet.</Text>}
+                {activityCompletions.slice(0, activityLimit).map((c, idx) => {
                   const task = tasks.find(t => t.id === c.task_id);
                   const date = new Date(c.created_at);
                   const label = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
