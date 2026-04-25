@@ -209,17 +209,6 @@ function IconColorPicker({ icon, color, onChangeIcon, onChangeColor, label = 'Ic
               </TouchableOpacity>
             </View>
 
-            {/* Step indicators */}
-            <View style={icpStyles.stepRow}>
-              <TouchableOpacity onPress={() => setStep('icon')} style={[icpStyles.stepPill, step === 'icon' && icpStyles.stepPillActive]}>
-                <Text style={[icpStyles.stepText, step === 'icon' && icpStyles.stepTextActive]}>1  Icon</Text>
-              </TouchableOpacity>
-              <View style={icpStyles.stepDivider} />
-              <View style={[icpStyles.stepPill, step === 'color' && icpStyles.stepPillActive]}>
-                <Text style={[icpStyles.stepText, step === 'color' && icpStyles.stepTextActive]}>2  Color</Text>
-              </View>
-            </View>
-
             {step === 'icon' && (
               <>
                 <TextInput
@@ -302,16 +291,6 @@ const icpStyles = StyleSheet.create({
   },
   panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   panelTitle: { fontFamily: 'Inter-Bold', fontSize: 18, color: '#e2e8f0' },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  stepPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
-    backgroundColor: '#1e293b', borderWidth: 1.5, borderColor: '#334155',
-  },
-  stepPillActive: { borderColor: '#3b82f6', backgroundColor: '#1e3a5f' },
-  stepText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#475569' },
-  stepTextActive: { color: '#60a5fa' },
-  stepDivider: { flex: 1, height: 1.5, backgroundColor: '#1e293b' },
   searchInput: {
     backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155',
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
@@ -324,7 +303,7 @@ const icpStyles = StyleSheet.create({
     backgroundColor: '#1e293b', borderWidth: 1.5, borderColor: '#334155',
     justifyContent: 'center', alignItems: 'center',
   },
-  colorStepWrap: { flex: 1, justifyContent: 'center' },
+  colorStepWrap: { paddingTop: 4 },
   colorPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
   colorPreviewIcon: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   colorPreviewHint: { fontFamily: 'Inter-Regular', fontSize: 13, color: '#64748b', flex: 1 },
