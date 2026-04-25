@@ -307,7 +307,7 @@ function IconColorPicker({ icon, color, onChangeIcon, onChangeColor, label = 'Ic
       {!compact && <Text style={icpStyles.label}>{label}</Text>}
       {compact ? (
         <TouchableOpacity style={[icpStyles.previewIcon, icpStyles.compactBtn, { backgroundColor: activeColor }]} onPress={openPicker} activeOpacity={0.75}>
-          <PreviewIcon size={26} color="#ffffff" strokeWidth={1.8} />
+          <PreviewIcon size={30} color="#ffffff" strokeWidth={1.8} />
         </TouchableOpacity>
       ) : (
       <TouchableOpacity style={icpStyles.previewBtn} onPress={openPicker} activeOpacity={0.75}>
@@ -406,7 +406,7 @@ const icpStyles = StyleSheet.create({
     borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
   previewIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  compactBtn: { width: 52, height: 52, borderRadius: 14 },
+  compactBtn: { width: 64, height: 64, borderRadius: 18 },
   previewText: { flex: 1 },
   previewTitle: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#e2e8f0' },
   previewSub: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#475569', marginTop: 2 },
@@ -1250,9 +1250,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
           <SwipeDismissSheet onDismiss={() => setCreateSheet(false)} style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]}>
             <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
 
-            <Text style={[styles.sheetTitle, { textAlign: 'left', fontSize: 20, marginBottom: 20 }]}>New Task</Text>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
               <IconColorPicker
                 compact
                 icon={createIcon}
@@ -1260,15 +1258,18 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                 onChangeIcon={setCreateIcon}
                 onChangeColor={setCreateColor}
               />
-              <TextInput
-                style={[styles.editInput, { flex: 1, marginBottom: 0 }]}
-                value={createTitle}
-                onChangeText={setCreateTitle}
-                placeholder="Task title"
-                placeholderTextColor="#475569"
-                returnKeyType="next"
-              />
+              <Text style={[styles.sheetTitle, { textAlign: 'center', fontSize: 20, marginTop: 10, marginBottom: 0 }]}>New Task</Text>
             </View>
+
+            <Text style={styles.editLabel}>Title</Text>
+            <TextInput
+              style={styles.editInput}
+              value={createTitle}
+              onChangeText={setCreateTitle}
+              placeholder="Task title"
+              placeholderTextColor="#475569"
+              returnKeyType="next"
+            />
 
             <Text style={[styles.editLabel, { marginTop: 14 }]}>Description (optional)</Text>
             <TextInput
@@ -1357,9 +1358,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
           <SwipeDismissSheet onDismiss={() => setCreateRewardSheet(false)} style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]}>
             <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
 
-            <Text style={[styles.sheetTitle, { textAlign: 'left', fontSize: 20, marginBottom: 20 }]}>New Reward</Text>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
               <IconColorPicker
                 compact
                 icon={createRewardIcon}
@@ -1367,15 +1366,18 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                 onChangeIcon={setCreateRewardIcon}
                 onChangeColor={setCreateRewardColor}
               />
-              <TextInput
-                style={[styles.editInput, { flex: 1, marginBottom: 0 }]}
-                placeholder="e.g. Pizza night, Movie time…"
-                placeholderTextColor="#334155"
-                value={createRewardTitle}
-                onChangeText={setCreateRewardTitle}
-                maxLength={60}
-              />
+              <Text style={[styles.sheetTitle, { textAlign: 'center', fontSize: 20, marginTop: 10, marginBottom: 0 }]}>New Reward</Text>
             </View>
+
+            <Text style={styles.editLabel}>Title</Text>
+            <TextInput
+              style={styles.editInput}
+              placeholder="e.g. Pizza night, Movie time…"
+              placeholderTextColor="#334155"
+              value={createRewardTitle}
+              onChangeText={setCreateRewardTitle}
+              maxLength={60}
+            />
 
             <Text style={[styles.editLabel, { marginTop: 14 }]}>Description (optional)</Text>
             <TextInput
