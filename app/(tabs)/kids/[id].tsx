@@ -230,7 +230,7 @@ function IconColorPicker({ icon, color, onChangeIcon, onChangeColor, label = 'Ic
                   onChangeText={setSearch}
                   autoCorrect={false}
                 />
-                <ScrollView contentContainerStyle={icpStyles.iconGrid} showsVerticalScrollIndicator={false}>
+                <ScrollView style={icpStyles.iconScroll} contentContainerStyle={icpStyles.iconGrid} showsVerticalScrollIndicator={false}>
                   {filtered.map(({ key, Icon }) => {
                     const sel = (pendingIcon ?? icon) === key;
                     return (
@@ -240,8 +240,7 @@ function IconColorPicker({ icon, color, onChangeIcon, onChangeColor, label = 'Ic
                         onPress={() => selectIcon(key)}
                         activeOpacity={0.7}
                       >
-                        <Icon size={22} color={sel ? activeColor : '#64748b'} strokeWidth={1.8} />
-                        <Text style={[icpStyles.iconLabel, sel && { color: activeColor }]}>{ICON_LABELS[key] ?? key}</Text>
+                        <Icon size={20} color={sel ? activeColor : '#64748b'} strokeWidth={1.8} />
                       </TouchableOpacity>
                     );
                   })}
@@ -253,9 +252,12 @@ function IconColorPicker({ icon, color, onChangeIcon, onChangeColor, label = 'Ic
               <View style={icpStyles.colorStepWrap}>
                 <View style={icpStyles.colorPreviewRow}>
                   <View style={[icpStyles.colorPreviewIcon, { backgroundColor: (color ?? '#60a5fa') + '22' }]}>
-                    <DisplayIcon size={30} color={color ?? '#60a5fa'} strokeWidth={1.8} />
+                    <DisplayIcon size={28} color={color ?? '#60a5fa'} strokeWidth={1.8} />
                   </View>
-                  <Text style={icpStyles.colorPreviewHint}>Select a color for your icon</Text>
+                  <Text style={icpStyles.colorPreviewHint}>Pick a color</Text>
+                  <TouchableOpacity onPress={() => setStep('icon')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={icpStyles.backLink}>Back</Text>
+                  </TouchableOpacity>
                 </View>
                 <View style={icpStyles.colorGrid}>
                   {EDIT_COLORS.map(c => {
@@ -296,37 +298,38 @@ const icpStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   panel: {
     backgroundColor: '#0f172a', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 36, maxHeight: '80%',
+    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 36, height: 420,
   },
-  panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   panelTitle: { fontFamily: 'Inter-Bold', fontSize: 18, color: '#e2e8f0' },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   stepPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
     backgroundColor: '#1e293b', borderWidth: 1.5, borderColor: '#334155',
   },
   stepPillActive: { borderColor: '#3b82f6', backgroundColor: '#1e3a5f' },
-  stepText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#475569' },
+  stepText: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#475569' },
   stepTextActive: { color: '#60a5fa' },
   stepDivider: { flex: 1, height: 1.5, backgroundColor: '#1e293b' },
   searchInput: {
     backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155',
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
-    fontFamily: 'Inter-Regular', fontSize: 14, color: '#e2e8f0', marginBottom: 12,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+    fontFamily: 'Inter-Regular', fontSize: 13, color: '#e2e8f0', marginBottom: 10,
   },
-  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 8 },
+  iconScroll: { flex: 1 },
+  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 8 },
   iconCell: {
-    width: '22%', aspectRatio: 1, borderRadius: 14,
+    width: 52, height: 52, borderRadius: 12,
     backgroundColor: '#1e293b', borderWidth: 1.5, borderColor: '#334155',
-    justifyContent: 'center', alignItems: 'center', gap: 4,
+    justifyContent: 'center', alignItems: 'center',
   },
-  iconLabel: { fontFamily: 'Inter-Regular', fontSize: 10, color: '#64748b', textAlign: 'center' },
-  colorStepWrap: { paddingTop: 4 },
-  colorPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
-  colorPreviewIcon: { width: 56, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  colorStepWrap: { flex: 1, justifyContent: 'center' },
+  colorPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
+  colorPreviewIcon: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   colorPreviewHint: { fontFamily: 'Inter-Regular', fontSize: 13, color: '#64748b', flex: 1 },
-  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  backLink: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#3b82f6' },
+  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   colorCell: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
   colorCellSelected: { borderWidth: 3, borderColor: '#fff' },
 });
