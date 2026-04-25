@@ -1237,7 +1237,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               returnKeyType="done"
             />
 
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14 }}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.editLabel, { marginBottom: 8 }]}>Stars</Text>
                 <View style={[styles.editStarRow, { marginBottom: 0 }]}>
@@ -1320,7 +1320,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               returnKeyType="done"
             />
 
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14 }}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.editLabel, { marginBottom: 8 }]}>Stars</Text>
                 <View style={[styles.editStarRow, { marginBottom: 0 }]}>
@@ -1970,7 +1970,7 @@ const styles = StyleSheet.create({
   awardCancelBtn: { paddingVertical: 10, alignSelf: 'center' },
   awardCancelText: { fontFamily: 'Inter-SemiBold', fontSize: 15, color: '#475569' },
 
-  editLabel: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
+  editLabel: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 },
   editInput: {
     backgroundColor: '#0f1e33', borderWidth: 1, borderColor: '#1e3a5f',
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
