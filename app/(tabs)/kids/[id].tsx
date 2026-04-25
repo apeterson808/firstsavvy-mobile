@@ -14,6 +14,7 @@ import {
   Pressable,
   Linking,
   TextInput,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -229,6 +230,33 @@ const ICON_LABELS: Record<string, string> = {
   Trophy: 'Trophy', Tv: 'TV', Umbrella: 'Rain', Volleyball: 'Sports',
   Waves: 'Swim', Wind: 'Wind', Wrench: 'Fix',
 };
+
+function SwipeDismissSheet({ onDismiss, children, style }: { onDismiss: () => void; children: React.ReactNode; style?: object }) {
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gs) => gs.dy > 8 && Math.abs(gs.dy) > Math.abs(gs.dx),
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy > 0) translateY.setValue(gs.dy);
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dy > 80 || gs.vy > 0.5) {
+          Animated.timing(translateY, { toValue: 600, duration: 200, useNativeDriver: true }).start(onDismiss);
+        } else {
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+        }
+      },
+    })
+  ).current;
+
+  return (
+    <Animated.View style={[style, { transform: [{ translateY }] }]} {...panResponder.panHandlers}>
+      {children}
+    </Animated.View>
+  );
+}
 
 interface IconColorPickerProps {
   icon: string | null;
@@ -1044,7 +1072,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
       <Modal transparent visible={!!awardModal} animationType="slide" onRequestClose={() => setAwardModal(null)}>
         <Pressable style={styles.sheetOverlay} onPress={() => setAwardModal(null)}>
-          <Pressable style={styles.awardSheet} onPress={() => {}}>
+          <SwipeDismissSheet onDismiss={() => setAwardModal(null)} style={styles.awardSheet}>
             <View style={styles.sheetHandle} />
 
             <TouchableOpacity style={styles.sheetClose} onPress={() => setAwardModal(null)}>
@@ -1104,13 +1132,13 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             <TouchableOpacity style={styles.awardCancelBtn} onPress={() => setAwardModal(null)}>
               <Text style={styles.awardCancelText}>Cancel</Text>
             </TouchableOpacity>
-          </Pressable>
+          </SwipeDismissSheet>
         </Pressable>
       </Modal>
 
       <Modal transparent visible={!!editSheet} animationType="slide" onRequestClose={() => setEditSheet(null)}>
         <Pressable style={styles.sheetOverlay} onPress={() => setEditSheet(null)}>
-          <Pressable style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]} onPress={() => {}}>
+          <SwipeDismissSheet onDismiss={() => setEditSheet(null)} style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]}>
             <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
             <TouchableOpacity style={styles.sheetClose} onPress={() => setEditSheet(null)}>
               <CircleX size={18} color="#64748b" />
@@ -1218,13 +1246,13 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             <TouchableOpacity style={styles.awardCancelBtn} onPress={() => setEditSheet(null)}>
               <Text style={styles.awardCancelText}>Cancel</Text>
             </TouchableOpacity>
-          </Pressable>
+          </SwipeDismissSheet>
         </Pressable>
       </Modal>
 
       <Modal transparent visible={createSheet} animationType="slide" onRequestClose={() => setCreateSheet(false)}>
         <Pressable style={styles.sheetOverlay} onPress={() => setCreateSheet(false)}>
-          <Pressable style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]} onPress={() => {}}>
+          <SwipeDismissSheet onDismiss={() => setCreateSheet(false)} style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]}>
             <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
             <TouchableOpacity style={styles.sheetClose} onPress={() => setCreateSheet(false)}>
               <CircleX size={18} color="#64748b" />
@@ -1328,14 +1356,14 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             <TouchableOpacity style={styles.awardCancelBtn} onPress={() => setCreateSheet(false)}>
               <Text style={styles.awardCancelText}>Cancel</Text>
             </TouchableOpacity>
-          </Pressable>
+          </SwipeDismissSheet>
         </Pressable>
       </Modal>
 
       {/* Create Reward sheet */}
       <Modal transparent visible={createRewardSheet} animationType="slide" onRequestClose={() => setCreateRewardSheet(false)}>
         <Pressable style={styles.sheetOverlay} onPress={() => setCreateRewardSheet(false)}>
-          <Pressable style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]} onPress={() => {}}>
+          <SwipeDismissSheet onDismiss={() => setCreateRewardSheet(false)} style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]}>
             <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
             <TouchableOpacity style={styles.sheetClose} onPress={() => setCreateRewardSheet(false)}>
               <CircleX size={18} color="#64748b" />
@@ -1408,7 +1436,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             <TouchableOpacity style={styles.awardCancelBtn} onPress={() => setCreateRewardSheet(false)}>
               <Text style={styles.awardCancelText}>Cancel</Text>
             </TouchableOpacity>
-          </Pressable>
+          </SwipeDismissSheet>
         </Pressable>
       </Modal>
 
