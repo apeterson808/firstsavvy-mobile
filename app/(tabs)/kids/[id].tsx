@@ -381,7 +381,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   const [editIcon, setEditIcon] = useState<string | null>(null);
   const [editColor, setEditColor] = useState<string | null>(null);
   const [editStars, setEditStars] = useState('1');
-  const [editResetMode, setEditResetMode] = useState<'daily' | 'instant'>('daily');
+  const [editResetMode, setEditResetMode] = useState<'instant' | 'daily' | 'weekly' | 'monthly'>('instant');
   const [editSaving, setEditSaving] = useState(false);
 
   const [createSheet, setCreateSheet] = useState(false);
@@ -390,7 +390,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   const [createIcon, setCreateIcon] = useState<string | null>(null);
   const [createColor, setCreateColor] = useState<string | null>(null);
   const [createStars, setCreateStars] = useState('1');
-  const [createResetMode, setCreateResetMode] = useState<'daily' | 'instant'>('daily');
+  const [createResetMode, setCreateResetMode] = useState<'instant' | 'daily' | 'weekly' | 'monthly'>('instant');
   const [createSaving, setCreateSaving] = useState(false);
 
   const tabUnderlineX = useRef(new Animated.Value(0)).current;
@@ -510,7 +510,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
     setEditIcon(task.icon);
     setEditColor(task.color);
     setEditStars(String(task.star_reward ?? 1));
-    setEditResetMode((task.reset_mode === 'instant' ? 'instant' : 'daily'));
+    setEditResetMode((['instant', 'daily', 'weekly', 'monthly'].includes(task.reset_mode) ? task.reset_mode : 'instant') as 'instant' | 'daily' | 'weekly' | 'monthly');
     setEditSheet(task);
   }
 
@@ -539,7 +539,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
     setCreateIcon(null);
     setCreateColor(null);
     setCreateStars('1');
-    setCreateResetMode('daily');
+    setCreateResetMode('instant');
     setCreateSheet(true);
   }
 
@@ -801,24 +801,35 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
             {/* Reset mode */}
             <Text style={[styles.editLabel, { marginTop: 16 }]}>Resets</Text>
-            <View style={styles.resetToggleRow}>
+            <View style={styles.resetScheduleRow}>
+              <View style={styles.resetScheduleLeft}>
+                <Text style={styles.resetScheduleLabel}>Set a schedule</Text>
+                <Text style={styles.resetScheduleSub}>Reset on a recurring interval</Text>
+              </View>
               <TouchableOpacity
-                style={[styles.resetOption, editResetMode === 'daily' && styles.resetOptionActive]}
-                onPress={() => setEditResetMode('daily')}
-                activeOpacity={0.7}
+                style={[styles.resetToggle, editResetMode !== 'instant' && styles.resetToggleOn]}
+                onPress={() => setEditResetMode(editResetMode === 'instant' ? 'daily' : 'instant')}
+                activeOpacity={0.8}
               >
-                <Text style={[styles.resetOptionText, editResetMode === 'daily' && styles.resetOptionTextActive]}>Daily</Text>
-                <Text style={[styles.resetOptionSub, editResetMode === 'daily' && styles.resetOptionSubActive]}>Resets each day</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.resetOption, editResetMode === 'instant' && styles.resetOptionActive]}
-                onPress={() => setEditResetMode('instant')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.resetOptionText, editResetMode === 'instant' && styles.resetOptionTextActive]}>Instant</Text>
-                <Text style={[styles.resetOptionSub, editResetMode === 'instant' && styles.resetOptionSubActive]}>Resets after approved</Text>
+                <View style={[styles.resetToggleThumb, editResetMode !== 'instant' && styles.resetToggleThumbOn]} />
               </TouchableOpacity>
             </View>
+            {editResetMode !== 'instant' && (
+              <View style={styles.scheduleOptionsRow}>
+                {(['daily', 'weekly', 'monthly'] as const).map(mode => (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[styles.scheduleChip, editResetMode === mode && styles.scheduleChipActive]}
+                    onPress={() => setEditResetMode(mode)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.scheduleChipText, editResetMode === mode && styles.scheduleChipTextActive]}>
+                      {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             <TouchableOpacity
               style={[styles.awardConfirmBtn, { marginTop: 24, backgroundColor: '#2563eb' }, (!editTitle.trim() || editSaving) && { opacity: 0.5 }]}
@@ -927,24 +938,35 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             </View>
 
             <Text style={[styles.editLabel, { marginTop: 16 }]}>Resets</Text>
-            <View style={styles.resetToggleRow}>
+            <View style={styles.resetScheduleRow}>
+              <View style={styles.resetScheduleLeft}>
+                <Text style={styles.resetScheduleLabel}>Set a schedule</Text>
+                <Text style={styles.resetScheduleSub}>Reset on a recurring interval</Text>
+              </View>
               <TouchableOpacity
-                style={[styles.resetOption, createResetMode === 'daily' && styles.resetOptionActive]}
-                onPress={() => setCreateResetMode('daily')}
-                activeOpacity={0.7}
+                style={[styles.resetToggle, createResetMode !== 'instant' && styles.resetToggleOn]}
+                onPress={() => setCreateResetMode(createResetMode === 'instant' ? 'daily' : 'instant')}
+                activeOpacity={0.8}
               >
-                <Text style={[styles.resetOptionText, createResetMode === 'daily' && styles.resetOptionTextActive]}>Daily</Text>
-                <Text style={[styles.resetOptionSub, createResetMode === 'daily' && styles.resetOptionSubActive]}>Resets each day</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.resetOption, createResetMode === 'instant' && styles.resetOptionActive]}
-                onPress={() => setCreateResetMode('instant')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.resetOptionText, createResetMode === 'instant' && styles.resetOptionTextActive]}>Instant</Text>
-                <Text style={[styles.resetOptionSub, createResetMode === 'instant' && styles.resetOptionSubActive]}>Resets after approved</Text>
+                <View style={[styles.resetToggleThumb, createResetMode !== 'instant' && styles.resetToggleThumbOn]} />
               </TouchableOpacity>
             </View>
+            {createResetMode !== 'instant' && (
+              <View style={styles.scheduleOptionsRow}>
+                {(['daily', 'weekly', 'monthly'] as const).map(mode => (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[styles.scheduleChip, createResetMode === mode && styles.scheduleChipActive]}
+                    onPress={() => setCreateResetMode(mode)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.scheduleChipText, createResetMode === mode && styles.scheduleChipTextActive]}>
+                      {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             <TouchableOpacity
               style={[styles.awardConfirmBtn, { marginTop: 24, backgroundColor: '#2563eb' }, (!createTitle.trim() || createSaving) && { opacity: 0.5 }]}
@@ -1523,16 +1545,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e3a5f',
   },
   addTaskBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#60a5fa' },
-  resetToggleRow: { flexDirection: 'row', gap: 10, marginBottom: 4 },
-  resetOption: {
-    flex: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10,
-    backgroundColor: '#0f1e33', borderWidth: 1.5, borderColor: '#1e3a5f', alignItems: 'center',
+  resetScheduleRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#0f1e33', borderWidth: 1.5, borderColor: '#1e3a5f',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8,
   },
-  resetOptionActive: { borderColor: '#3b82f6', backgroundColor: '#1e3a5f' },
-  resetOptionText: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#475569' },
-  resetOptionTextActive: { color: '#60a5fa' },
-  resetOptionSub: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#334155', marginTop: 2 },
-  resetOptionSubActive: { color: '#93c5fd' },
+  resetScheduleLeft: { flex: 1, marginRight: 12 },
+  resetScheduleLabel: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#e2e8f0' },
+  resetScheduleSub: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#475569', marginTop: 2 },
+  resetToggle: {
+    width: 44, height: 26, borderRadius: 13, backgroundColor: '#1e293b',
+    borderWidth: 1.5, borderColor: '#334155', justifyContent: 'center', paddingHorizontal: 3,
+  },
+  resetToggleOn: { backgroundColor: '#1e3a5f', borderColor: '#3b82f6' },
+  resetToggleThumb: {
+    width: 18, height: 18, borderRadius: 9, backgroundColor: '#475569',
+  },
+  resetToggleThumbOn: { backgroundColor: '#60a5fa', alignSelf: 'flex-end' },
+  scheduleOptionsRow: {
+    flexDirection: 'row', gap: 8, marginBottom: 4,
+  },
+  scheduleChip: {
+    flex: 1, paddingVertical: 9, borderRadius: 10,
+    backgroundColor: '#0f1e33', borderWidth: 1.5, borderColor: '#1e3a5f',
+    alignItems: 'center',
+  },
+  scheduleChipActive: { borderColor: '#3b82f6', backgroundColor: '#1e3a5f' },
+  scheduleChipText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#475569' },
+  scheduleChipTextActive: { color: '#60a5fa' },
   colorPickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
   colorSwatch: {
     width: 32, height: 32, borderRadius: 16,
