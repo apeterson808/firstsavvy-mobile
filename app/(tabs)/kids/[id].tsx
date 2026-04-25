@@ -128,6 +128,209 @@ interface Contact {
   tags: string[] | null;
 }
 
+// ─── Icon/Color picker ───────────────────────────────────────────────────────
+
+const ICON_LABELS: Record<string, string> = {
+  Utensils: 'Utensils', Zap: 'Zap', Music: 'Music', Bed: 'Bed',
+  BookOpen: 'Book', Dumbbell: 'Dumbbell', Bike: 'Bike',
+  ShoppingCart: 'Shopping', Dog: 'Dog', Brush: 'Brush', Heart: 'Heart',
+  Leaf: 'Leaf', Sun: 'Sun', Moon: 'Moon', Smile: 'Smile',
+  Gamepad2: 'Gaming', Bath: 'Bath', Gift: 'Gift', Star: 'Star',
+  Trash2: 'Trash',
+};
+
+interface IconColorPickerProps {
+  icon: string | null;
+  color: string | null;
+  onChangeIcon: (icon: string) => void;
+  onChangeColor: (color: string) => void;
+  label?: string;
+}
+
+function IconColorPicker({ icon, color, onChangeIcon, onChangeColor, label = 'Icon & Color' }: IconColorPickerProps) {
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<'icon' | 'color'>('icon');
+  const [search, setSearch] = useState('');
+  const [pendingIcon, setPendingIcon] = useState<string | null>(null);
+
+  const activeColor = color ?? '#60a5fa';
+  const PreviewIcon = icon ? (ICON_MAP[icon] ?? Star) : Star;
+
+  function openPicker() {
+    setPendingIcon(icon);
+    setSearch('');
+    setStep('icon');
+    setOpen(true);
+  }
+
+  function selectIcon(key: string) {
+    setPendingIcon(key);
+    onChangeIcon(key);
+    setStep('color');
+  }
+
+  function selectColor(c: string) {
+    onChangeColor(c);
+    setOpen(false);
+    setStep('icon');
+    setSearch('');
+  }
+
+  const filtered = EDIT_ICONS.filter(({ key }) =>
+    search.trim() === '' || (ICON_LABELS[key] ?? key).toLowerCase().includes(search.toLowerCase())
+  );
+
+  const DisplayIcon = pendingIcon ? (ICON_MAP[pendingIcon] ?? Star) : PreviewIcon;
+
+  return (
+    <>
+      <Text style={icpStyles.label}>{label}</Text>
+      <TouchableOpacity style={icpStyles.previewBtn} onPress={openPicker} activeOpacity={0.75}>
+        <View style={[icpStyles.previewIcon, { backgroundColor: activeColor + '22' }]}>
+          <PreviewIcon size={22} color={activeColor} strokeWidth={1.8} />
+        </View>
+        <View style={icpStyles.previewText}>
+          <Text style={icpStyles.previewTitle}>{icon ? (ICON_LABELS[icon] ?? icon) : 'Default'}</Text>
+          <Text style={icpStyles.previewSub}>Tap to change</Text>
+        </View>
+        <View style={[icpStyles.colorDot, { backgroundColor: activeColor }]} />
+      </TouchableOpacity>
+
+      <Modal transparent visible={open} animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={icpStyles.overlay} onPress={() => setOpen(false)}>
+          <Pressable style={icpStyles.panel} onPress={() => {}}>
+            {/* Header */}
+            <View style={icpStyles.panelHeader}>
+              <Text style={icpStyles.panelTitle}>
+                {step === 'icon' ? 'Choose an Icon' : 'Choose a Color'}
+              </Text>
+              <TouchableOpacity onPress={() => setOpen(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <CircleX size={20} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Step indicators */}
+            <View style={icpStyles.stepRow}>
+              <TouchableOpacity onPress={() => setStep('icon')} style={[icpStyles.stepPill, step === 'icon' && icpStyles.stepPillActive]}>
+                <Text style={[icpStyles.stepText, step === 'icon' && icpStyles.stepTextActive]}>1  Icon</Text>
+              </TouchableOpacity>
+              <View style={icpStyles.stepDivider} />
+              <View style={[icpStyles.stepPill, step === 'color' && icpStyles.stepPillActive]}>
+                <Text style={[icpStyles.stepText, step === 'color' && icpStyles.stepTextActive]}>2  Color</Text>
+              </View>
+            </View>
+
+            {step === 'icon' && (
+              <>
+                <TextInput
+                  style={icpStyles.searchInput}
+                  placeholder="Search icons…"
+                  placeholderTextColor="#334155"
+                  value={search}
+                  onChangeText={setSearch}
+                  autoCorrect={false}
+                />
+                <ScrollView contentContainerStyle={icpStyles.iconGrid} showsVerticalScrollIndicator={false}>
+                  {filtered.map(({ key, Icon }) => {
+                    const sel = (pendingIcon ?? icon) === key;
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        style={[icpStyles.iconCell, sel && { borderColor: activeColor, backgroundColor: activeColor + '18' }]}
+                        onPress={() => selectIcon(key)}
+                        activeOpacity={0.7}
+                      >
+                        <Icon size={22} color={sel ? activeColor : '#64748b'} strokeWidth={1.8} />
+                        <Text style={[icpStyles.iconLabel, sel && { color: activeColor }]}>{ICON_LABELS[key] ?? key}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
+
+            {step === 'color' && (
+              <View style={icpStyles.colorStepWrap}>
+                <View style={icpStyles.colorPreviewRow}>
+                  <View style={[icpStyles.colorPreviewIcon, { backgroundColor: (color ?? '#60a5fa') + '22' }]}>
+                    <DisplayIcon size={30} color={color ?? '#60a5fa'} strokeWidth={1.8} />
+                  </View>
+                  <Text style={icpStyles.colorPreviewHint}>Select a color for your icon</Text>
+                </View>
+                <View style={icpStyles.colorGrid}>
+                  {EDIT_COLORS.map(c => {
+                    const sel = color === c;
+                    return (
+                      <TouchableOpacity
+                        key={c}
+                        style={[icpStyles.colorCell, { backgroundColor: c }, sel && icpStyles.colorCellSelected]}
+                        onPress={() => selectColor(c)}
+                        activeOpacity={0.75}
+                      >
+                        {sel && <Check size={16} color="#fff" strokeWidth={3} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
+const icpStyles = StyleSheet.create({
+  label: { fontFamily: 'Inter-SemiBold', fontSize: 12, color: '#64748b', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 },
+  previewBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#0f1e33', borderWidth: 1.5, borderColor: '#1e3a5f',
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
+  },
+  previewIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  previewText: { flex: 1 },
+  previewTitle: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#e2e8f0' },
+  previewSub: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#475569', marginTop: 2 },
+  colorDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  panel: {
+    backgroundColor: '#0f172a', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 36, maxHeight: '80%',
+  },
+  panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  panelTitle: { fontFamily: 'Inter-Bold', fontSize: 18, color: '#e2e8f0' },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  stepPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: '#1e293b', borderWidth: 1.5, borderColor: '#334155',
+  },
+  stepPillActive: { borderColor: '#3b82f6', backgroundColor: '#1e3a5f' },
+  stepText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#475569' },
+  stepTextActive: { color: '#60a5fa' },
+  stepDivider: { flex: 1, height: 1.5, backgroundColor: '#1e293b' },
+  searchInput: {
+    backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155',
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+    fontFamily: 'Inter-Regular', fontSize: 14, color: '#e2e8f0', marginBottom: 12,
+  },
+  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 8 },
+  iconCell: {
+    width: '22%', aspectRatio: 1, borderRadius: 14,
+    backgroundColor: '#1e293b', borderWidth: 1.5, borderColor: '#334155',
+    justifyContent: 'center', alignItems: 'center', gap: 4,
+  },
+  iconLabel: { fontFamily: 'Inter-Regular', fontSize: 10, color: '#64748b', textAlign: 'center' },
+  colorStepWrap: { paddingTop: 4 },
+  colorPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
+  colorPreviewIcon: { width: 56, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  colorPreviewHint: { fontFamily: 'Inter-Regular', fontSize: 13, color: '#64748b', flex: 1 },
+  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  colorCell: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
+  colorCellSelected: { borderWidth: 3, borderColor: '#fff' },
+});
+
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 const ICON_MAP: Record<string, FC<LucideProps>> = {
@@ -797,43 +1000,12 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               </TouchableOpacity>
             </View>
 
-            {/* Icon picker */}
-            <Text style={styles.editLabel}>Icon</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
-              {EDIT_ICONS.map(({ key, Icon }) => {
-                const selected = editIcon === key;
-                const color = editColor ?? '#60a5fa';
-                return (
-                  <TouchableOpacity
-                    key={key}
-                    style={[styles.iconPickerItem, selected && { borderColor: color, backgroundColor: color + '20' }]}
-                    onPress={() => setEditIcon(key)}
-                    activeOpacity={0.7}
-                  >
-                    <Icon size={20} color={selected ? color : '#64748b'} strokeWidth={1.8} />
-                    {selected && <View style={[styles.iconPickerCheck, { backgroundColor: color }]}><Check size={8} color="#fff" /></View>}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {/* Color picker */}
-            <Text style={styles.editLabel}>Color</Text>
-            <View style={styles.colorPickerRow}>
-              {EDIT_COLORS.map(c => {
-                const selected = editColor === c;
-                return (
-                  <TouchableOpacity
-                    key={c}
-                    style={[styles.colorSwatch, { backgroundColor: c }, selected && styles.colorSwatchSelected]}
-                    onPress={() => setEditColor(c)}
-                    activeOpacity={0.7}
-                  >
-                    {selected && <Check size={12} color="#fff" strokeWidth={3} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <IconColorPicker
+              icon={editIcon}
+              color={editColor}
+              onChangeIcon={setEditIcon}
+              onChangeColor={setEditColor}
+            />
 
             {/* Reset mode */}
             <Text style={[styles.editLabel, { marginTop: 16 }]}>Resets</Text>
@@ -937,43 +1109,14 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.editLabel}>Icon</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
-              {EDIT_ICONS.map(({ key, Icon }) => {
-                const selected = createIcon === key;
-                const color = createColor ?? '#60a5fa';
-                return (
-                  <TouchableOpacity
-                    key={key}
-                    style={[styles.iconPickerItem, selected && { borderColor: color, backgroundColor: color + '20' }]}
-                    onPress={() => setCreateIcon(key)}
-                    activeOpacity={0.7}
-                  >
-                    <Icon size={20} color={selected ? color : '#64748b'} strokeWidth={1.8} />
-                    {selected && <View style={[styles.iconPickerCheck, { backgroundColor: color }]}><Check size={8} color="#fff" /></View>}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            <IconColorPicker
+              icon={createIcon}
+              color={createColor}
+              onChangeIcon={setCreateIcon}
+              onChangeColor={setCreateColor}
+            />
 
-            <Text style={styles.editLabel}>Color</Text>
-            <View style={styles.colorPickerRow}>
-              {EDIT_COLORS.map(c => {
-                const selected = createColor === c;
-                return (
-                  <TouchableOpacity
-                    key={c}
-                    style={[styles.colorSwatch, { backgroundColor: c }, selected && styles.colorSwatchSelected]}
-                    onPress={() => setCreateColor(c)}
-                    activeOpacity={0.7}
-                  >
-                    {selected && <Check size={12} color="#fff" strokeWidth={3} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={[styles.editLabel, { marginTop: 16 }]}>Resets</Text>
+            <Text style={[styles.editLabel, { marginTop: 4 }]}>Resets</Text>
             <View style={styles.resetScheduleRow}>
               <View style={styles.resetScheduleLeft}>
                 <Text style={styles.resetScheduleLabel}>Set a schedule</Text>
@@ -1055,40 +1198,12 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               maxLength={5}
             />
 
-            <Text style={[styles.editLabel, { marginTop: 14 }]}>Icon</Text>
-            <View style={styles.iconPickerRow}>
-              {Object.keys(ICON_MAP).map(name => {
-                const Ic = ICON_MAP[name];
-                const selected = createRewardIcon === name;
-                return (
-                  <TouchableOpacity
-                    key={name}
-                    style={[styles.iconPickerBtn, selected && styles.iconPickerBtnActive]}
-                    onPress={() => setCreateRewardIcon(selected ? null : name)}
-                    activeOpacity={0.7}
-                  >
-                    <Ic size={18} color={selected ? '#f59e0b' : '#475569'} strokeWidth={1.8} />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={[styles.editLabel, { marginTop: 14 }]}>Color</Text>
-            <View style={styles.colorPickerRow}>
-              {['#f59e0b', '#ef4444', '#22c55e', '#3b82f6', '#06b6d4', '#ec4899', '#f97316', '#84cc16', '#6b7280'].map(c => {
-                const selected = createRewardColor === c;
-                return (
-                  <TouchableOpacity
-                    key={c}
-                    style={[styles.colorSwatch, { backgroundColor: c }, selected && styles.colorSwatchSelected]}
-                    onPress={() => setCreateRewardColor(c)}
-                    activeOpacity={0.7}
-                  >
-                    {selected && <Check size={12} color="#fff" strokeWidth={3} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <IconColorPicker
+              icon={createRewardIcon}
+              color={createRewardColor}
+              onChangeIcon={setCreateRewardIcon}
+              onChangeColor={setCreateRewardColor}
+            />
 
             <TouchableOpacity
               style={[styles.awardConfirmBtn, { marginTop: 24, backgroundColor: '#f59e0b' }, (!createRewardTitle.trim() || createRewardSaving) && { opacity: 0.5 }]}
@@ -1654,16 +1769,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f1e33', borderWidth: 1, borderColor: '#f59e0b40',
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 6,
   },
-  iconPickerItem: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: '#0f1e33', borderWidth: 1.5, borderColor: '#1e3a5f',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  iconPickerCheck: {
-    position: 'absolute', top: -4, right: -4,
-    width: 14, height: 14, borderRadius: 7,
-    justifyContent: 'center', alignItems: 'center',
-  },
   addTaskBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     marginHorizontal: 14, marginTop: 12, marginBottom: 4,
@@ -1699,10 +1804,4 @@ const styles = StyleSheet.create({
   scheduleChipActive: { borderColor: '#3b82f6', backgroundColor: '#1e3a5f' },
   scheduleChipText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#475569' },
   scheduleChipTextActive: { color: '#60a5fa' },
-  colorPickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
-  colorSwatch: {
-    width: 32, height: 32, borderRadius: 16,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  colorSwatchSelected: { borderWidth: 2.5, borderColor: '#fff' },
 });
