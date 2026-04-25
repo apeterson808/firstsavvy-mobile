@@ -825,15 +825,17 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   const [completions, setCompletions] = useState<Completion[]>([]);
   const [activityCompletions, setActivityCompletions] = useState<Completion[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
+  const [pendingRedemptions, setPendingRedemptions] = useState<Record<string, string>>({}); // rewardId -> redemptionId
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('Tasks');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuState>({ visible: false, itemId: null, type: 'task' });
   const [activityLimit, setActivityLimit] = useState(10);
-  const [awardModal, setAwardModal] = useState<{ task: Task } | null>(null);
+  const [awardModal, setAwardModal] = useState<{ task: Task | null } | null>(null);
   const [awardStarsInput, setAwardStarsInput] = useState('0');
   const [awardNote, setAwardNote] = useState('');
+  const [awardCustomReason, setAwardCustomReason] = useState('');
 
   const [editSheet, setEditSheet] = useState<Task | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -878,7 +880,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   async function load() {
     const todayStart = new Date(new Date().toLocaleDateString('en-CA')).toISOString();
 
-    const [childRes, taskRes, completionRes, activityRes, rewardRes] = await Promise.all([
+    const [childRes, taskRes, completionRes, activityRes, rewardRes, redemptionRes] = await Promise.all([
       supabase
         .from('child_profiles')
         .select('id, child_name, first_name, last_name, display_name, date_of_birth, stars_balance, cash_balance, current_permission_level, avatar_url, family_role')
@@ -909,6 +911,11 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
         .eq('assigned_to_child_id', childId)
         .eq('is_active', true)
         .order('created_at', { ascending: false }),
+      supabase
+        .from('reward_redemptions')
+        .select('id, reward_id')
+        .eq('child_profile_id', childId)
+        .eq('status', 'pending'),
     ]);
 
     const childData = childRes.data;
@@ -917,6 +924,9 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
     setCompletions(completionRes.data ?? []);
     setActivityCompletions(activityRes.data ?? []);
     setRewards(rewardRes.data ?? []);
+    const redMap: Record<string, string> = {};
+    for (const r of (redemptionRes.data ?? [])) redMap[r.reward_id] = r.id;
+    setPendingRedemptions(redMap);
 
     if (childData?.current_permission_level != null) {
       const { data: lvl } = await supabase
@@ -955,9 +965,27 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
     setActionLoading(null);
   }
 
-  function openAwardModal(task: Task) {
-    setAwardStarsInput(String(task.star_reward ?? 0));
+  async function approveRedemption(redemptionId: string, reward: Reward) {
+    const cost = reward.star_cost ?? 0;
+    setActionLoading('approve-redemption-' + redemptionId);
+    await supabase.from('reward_redemptions').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', redemptionId);
+    await supabase.from('rewards').update({ status: 'redeemed', redeemed_at: new Date().toISOString(), redeemed_by_child_id: childId }).eq('id', reward.id);
+    await supabase.from('child_profiles').update({ stars_balance: Math.max(0, (child?.stars_balance ?? 0) - cost) }).eq('id', childId);
+    await load();
+    setActionLoading(null);
+  }
+
+  async function rejectRedemption(redemptionId: string) {
+    setActionLoading('reject-redemption-' + redemptionId);
+    await supabase.from('reward_redemptions').update({ status: 'rejected' }).eq('id', redemptionId);
+    await load();
+    setActionLoading(null);
+  }
+
+  function openAwardModal(task: Task | null) {
+    setAwardStarsInput(task ? String(task.star_reward ?? 1) : '1');
     setAwardNote('');
+    setAwardCustomReason('');
     setAwardModal({ task });
   }
 
@@ -965,17 +993,19 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
     if (!awardModal) return;
     const task = awardModal.task;
     const stars = Math.max(0, parseInt(awardStarsInput, 10) || 0);
+    const loadingKey = task ? 'award-' + task.id : 'award-bonus';
     setAwardModal(null);
-    setActionLoading('award-' + task.id);
-    await supabase.from('task_completions').insert({
-      task_id: task.id,
+    setActionLoading(loadingKey);
+    const record: Record<string, unknown> = {
       child_profile_id: childId,
       status: 'approved',
       stars_earned: stars,
-      note: awardNote.trim() || null,
+      note: (task ? awardNote.trim() : awardCustomReason.trim()) || null,
       completed_at: new Date().toISOString(),
       reviewed_at: new Date().toISOString(),
-    });
+    };
+    if (task) record.task_id = task.id;
+    await supabase.from('task_completions').insert(record);
     await supabase.from('child_profiles').update({ stars_balance: (child?.stars_balance ?? 0) + stars }).eq('id', childId);
     await load();
     setActionLoading(null);
@@ -1199,15 +1229,31 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
           <SwipeDismissSheet onDismiss={() => setAwardModal(null)} style={styles.awardSheet}>
             <View style={styles.sheetHandle} />
 
+            {awardModal?.task ? (
+              <View style={[styles.awardSheetIcon, { backgroundColor: (awardModal.task.color ?? '#f59e0b') + '20', borderColor: (awardModal.task.color ?? '#f59e0b') + '40' }]}>
+                {(() => {
+                  const IconComp = awardModal.task.icon ? (ICON_MAP[awardModal.task.icon] ?? Star) : Star;
+                  return <IconComp size={36} color={awardModal.task.color ?? '#f59e0b'} strokeWidth={1.5} />;
+                })()}
+              </View>
+            ) : (
+              <View style={[styles.awardSheetIcon, { backgroundColor: '#f59e0b20', borderColor: '#f59e0b40' }]}>
+                <Sparkles size={36} color="#f59e0b" strokeWidth={1.5} />
+              </View>
+            )}
 
-            <View style={[styles.awardSheetIcon, { backgroundColor: (awardModal?.task.color ?? '#f59e0b') + '20', borderColor: (awardModal?.task.color ?? '#f59e0b') + '40' }]}>
-              {(() => {
-                const IconComp = awardModal?.task.icon ? (ICON_MAP[awardModal.task.icon] ?? Star) : Star;
-                return <IconComp size={36} color={awardModal?.task.color ?? '#f59e0b'} strokeWidth={1.5} />;
-              })()}
-            </View>
+            <Text style={styles.sheetTitle}>{awardModal?.task ? awardModal.task.title : 'Bonus Stars'}</Text>
 
-            <Text style={styles.sheetTitle}>{awardModal?.task.title}</Text>
+            {!awardModal?.task && (
+              <TextInput
+                style={[styles.awardNoteInput, { marginTop: 12 }]}
+                value={awardCustomReason}
+                onChangeText={setAwardCustomReason}
+                placeholder="Reason, e.g. Helped a friend"
+                placeholderTextColor="#475569"
+                returnKeyType="next"
+              />
+            )}
 
             <View style={styles.awardStarRow}>
               <TouchableOpacity
@@ -1236,14 +1282,16 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              style={styles.awardNoteInput}
-              value={awardNote}
-              onChangeText={setAwardNote}
-              placeholder="Add a message, e.g. Great job! (optional)"
-              placeholderTextColor="#475569"
-              returnKeyType="done"
-            />
+            {awardModal?.task && (
+              <TextInput
+                style={styles.awardNoteInput}
+                value={awardNote}
+                onChangeText={setAwardNote}
+                placeholder="Add a message, e.g. Great job! (optional)"
+                placeholderTextColor="#475569"
+                returnKeyType="done"
+              />
+            )}
 
             <TouchableOpacity style={styles.awardConfirmBtn} onPress={confirmAward} activeOpacity={0.85}>
               <Star size={20} color="#000" fill="#000" />
@@ -1654,10 +1702,16 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
             {activeTab === 'Tasks' && (
               <View>
-                <TouchableOpacity style={styles.addTaskBtn} onPress={openCreateSheet} activeOpacity={0.7}>
-                  <Plus size={15} color="#60a5fa" />
-                  <Text style={styles.addTaskBtnText}>Add Task</Text>
-                </TouchableOpacity>
+                <View style={styles.taskToolbar}>
+                  <TouchableOpacity style={[styles.addTaskBtn, { flex: 1, marginHorizontal: 0, marginBottom: 0 }]} onPress={openCreateSheet} activeOpacity={0.7}>
+                    <Plus size={15} color="#60a5fa" />
+                    <Text style={styles.addTaskBtnText}>Add Task</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.addTaskBtn, styles.bonusBtn]} onPress={() => openAwardModal(null)} activeOpacity={0.7}>
+                    <Sparkles size={15} color="#f59e0b" />
+                    <Text style={[styles.addTaskBtnText, { color: '#f59e0b' }]}>Bonus Stars</Text>
+                  </TouchableOpacity>
+                </View>
                 {tasks.length === 0 && <Text style={styles.emptyMsg}>No tasks assigned yet.</Text>}
                 {[...tasks].sort((a, b) => {
                   const aPending = latestActiveCompletion(a.id)?.status === 'pending' ? 0 : 1;
@@ -1779,29 +1833,51 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                         <View style={[styles.statusPill, styles.statusRedeemed, { alignSelf: 'flex-start', marginTop: 8 }]}>
                           <Text style={[styles.statusPillText, styles.statusRedeemedText]}>Redeemed</Text>
                         </View>
-                      ) : (
-                        <>
-                          <View style={styles.rewardProgressRow}>
-                            <Text style={styles.rewardProgressLabel}>{canAfford ? 'Ready to redeem!' : `${moreNeeded} more star${moreNeeded !== 1 ? 's' : ''} needed`}</Text>
-                            <Text style={styles.rewardProgressFraction}>{balance} / {cost}</Text>
-                          </View>
-                          <View style={styles.rewardProgressTrack}>
-                            <View style={[styles.rewardProgressFill, { width: `${progress * 100}%` as any }]} />
-                          </View>
-                          <TouchableOpacity
-                            style={[styles.redeemFullBtn, !canAfford && styles.redeemFullBtnLocked]}
-                            onPress={() => canAfford && redeemReward(reward)}
-                            disabled={!canAfford || actionLoading === 'redeem-' + reward.id}
-                          >
-                            {actionLoading === 'redeem-' + reward.id
-                              ? <ActivityIndicator size={13} color={canAfford ? '#fff' : '#475569'} />
-                              : canAfford ? <Gift size={13} color="#fff" /> : <Lock size={13} color="#475569" />}
-                            <Text style={[styles.redeemFullBtnText, !canAfford && styles.redeemFullBtnLockedText]}>
-                              {canAfford ? 'Redeem' : 'Locked'}
-                            </Text>
-                          </TouchableOpacity>
-                        </>
-                      )}
+                      ) : (() => {
+                        const redemptionId = pendingRedemptions[reward.id];
+                        const approvingBusy = actionLoading === 'approve-redemption-' + redemptionId;
+                        const rejectingBusy = actionLoading === 'reject-redemption-' + redemptionId;
+                        return (
+                          <>
+                            <View style={styles.rewardProgressRow}>
+                              <Text style={styles.rewardProgressLabel}>
+                                {redemptionId ? `${name} requested this!` : canAfford ? 'Ready to redeem!' : `${moreNeeded} more star${moreNeeded !== 1 ? 's' : ''} needed`}
+                              </Text>
+                              <Text style={styles.rewardProgressFraction}>{balance} / {cost}</Text>
+                            </View>
+                            <View style={styles.rewardProgressTrack}>
+                              <View style={[styles.rewardProgressFill, { width: `${progress * 100}%` as any }]} />
+                            </View>
+                            {redemptionId ? (
+                              <View style={styles.redemptionActionRow}>
+                                <TouchableOpacity
+                                  style={[styles.redemptionBtn, styles.redemptionRejectBtn]}
+                                  onPress={() => rejectRedemption(redemptionId)}
+                                  disabled={approvingBusy || rejectingBusy}
+                                >
+                                  {rejectingBusy ? <ActivityIndicator size={13} color="#f87171" /> : <CircleX size={13} color="#f87171" />}
+                                  <Text style={styles.redemptionRejectText}>Decline</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={[styles.redemptionBtn, styles.redemptionApproveBtn]}
+                                  onPress={() => approveRedemption(redemptionId, reward)}
+                                  disabled={approvingBusy || rejectingBusy}
+                                >
+                                  {approvingBusy ? <ActivityIndicator size={13} color="#fff" /> : <CircleCheck size={13} color="#fff" />}
+                                  <Text style={styles.redemptionApproveText}>Approve</Text>
+                                </TouchableOpacity>
+                              </View>
+                            ) : (
+                              <View style={[styles.redeemFullBtn, styles.redeemFullBtnLocked]}>
+                                <Lock size={13} color="#475569" />
+                                <Text style={[styles.redeemFullBtnText, styles.redeemFullBtnLockedText]}>
+                                  {canAfford ? 'Waiting for request' : 'Locked'}
+                                </Text>
+                              </View>
+                            )}
+                          </>
+                        );
+                      })()}
                     </View>
                   );
                 })}
@@ -2154,6 +2230,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e3a5f',
   },
   addTaskBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#60a5fa' },
+  taskToolbar: {
+    flexDirection: 'row', gap: 8,
+    marginHorizontal: 14, marginTop: 12, marginBottom: 4,
+  },
+  bonusBtn: {
+    flex: 1, marginHorizontal: 0, marginTop: 0, marginBottom: 0,
+    borderColor: '#78350f',
+  },
+  redemptionActionRow: {
+    flexDirection: 'row', gap: 8, marginTop: 10,
+  },
+  redemptionBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1,
+  },
+  redemptionRejectBtn: { backgroundColor: '#1a0808', borderColor: '#f8717130' },
+  redemptionRejectText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#f87171' },
+  redemptionApproveBtn: { backgroundColor: '#052e16', borderColor: '#22c55e50' },
+  redemptionApproveText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#4ade80' },
   editProfileBtn: {
     position: 'absolute', top: 10, right: 10,
     width: 30, height: 30, borderRadius: 15,
