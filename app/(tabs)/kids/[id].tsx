@@ -1353,6 +1353,17 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               maxLength={60}
             />
 
+            <Text style={[styles.editLabel, { marginTop: 14 }]}>Description (optional)</Text>
+            <TextInput
+              style={[styles.editInput, { minHeight: 60, textAlignVertical: 'top' }]}
+              placeholder="Short description…"
+              placeholderTextColor="#334155"
+              value={createRewardDescription}
+              onChangeText={setCreateRewardDescription}
+              multiline
+              returnKeyType="done"
+            />
+
             <Text style={[styles.editLabel, { marginTop: 14 }]}>Star Cost</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={[styles.editStarRow, { flex: 1, marginBottom: 0 }]}>
