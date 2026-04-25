@@ -236,9 +236,10 @@ interface IconColorPickerProps {
   onChangeIcon: (icon: string) => void;
   onChangeColor: (color: string) => void;
   label?: string;
+  compact?: boolean;
 }
 
-function IconColorPicker({ icon, color, onChangeIcon, onChangeColor, label = 'Icon & Color' }: IconColorPickerProps) {
+function IconColorPicker({ icon, color, onChangeIcon, onChangeColor, label = 'Icon & Color', compact = false }: IconColorPickerProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<'icon' | 'color'>('icon');
   const [search, setSearch] = useState('');
@@ -275,7 +276,12 @@ function IconColorPicker({ icon, color, onChangeIcon, onChangeColor, label = 'Ic
 
   return (
     <>
-      <Text style={icpStyles.label}>{label}</Text>
+      {!compact && <Text style={icpStyles.label}>{label}</Text>}
+      {compact ? (
+        <TouchableOpacity style={[icpStyles.previewIcon, { backgroundColor: activeColor + '22', borderWidth: 1.5, borderColor: activeColor + '44' }]} onPress={openPicker} activeOpacity={0.75}>
+          <PreviewIcon size={22} color={activeColor} strokeWidth={1.8} />
+        </TouchableOpacity>
+      ) : (
       <TouchableOpacity style={icpStyles.previewBtn} onPress={openPicker} activeOpacity={0.75}>
         <View style={[icpStyles.previewIcon, { backgroundColor: activeColor + '22' }]}>
           <PreviewIcon size={22} color={activeColor} strokeWidth={1.8} />
@@ -286,6 +292,7 @@ function IconColorPicker({ icon, color, onChangeIcon, onChangeColor, label = 'Ic
         </View>
         <View style={[icpStyles.colorDot, { backgroundColor: activeColor }]} />
       </TouchableOpacity>
+      )}
 
       <Modal transparent visible={open} animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={icpStyles.overlay} onPress={() => setOpen(false)}>
@@ -1343,22 +1350,24 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             />
 
             <Text style={[styles.editLabel, { marginTop: 14 }]}>Star Cost</Text>
-            <TextInput
-              style={styles.editInput}
-              placeholder="10"
-              placeholderTextColor="#334155"
-              value={createRewardStars}
-              onChangeText={setCreateRewardStars}
-              keyboardType="numeric"
-              maxLength={5}
-            />
-
-            <IconColorPicker
-              icon={createRewardIcon}
-              color={createRewardColor}
-              onChangeIcon={setCreateRewardIcon}
-              onChangeColor={setCreateRewardColor}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <TextInput
+                style={[styles.editInput, { flex: 1, marginBottom: 0 }]}
+                placeholder="10"
+                placeholderTextColor="#334155"
+                value={createRewardStars}
+                onChangeText={setCreateRewardStars}
+                keyboardType="numeric"
+                maxLength={5}
+              />
+              <IconColorPicker
+                compact
+                icon={createRewardIcon}
+                color={createRewardColor}
+                onChangeIcon={setCreateRewardIcon}
+                onChangeColor={setCreateRewardColor}
+              />
+            </View>
 
             <TouchableOpacity
               style={[styles.awardConfirmBtn, { marginTop: 24, backgroundColor: '#f59e0b' }, (!createRewardTitle.trim() || createRewardSaving) && { opacity: 0.5 }]}
