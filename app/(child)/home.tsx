@@ -14,6 +14,8 @@ import {
   Modal,
   Pressable,
   TextInput,
+  Animated,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -84,6 +86,267 @@ function TaskIcon({ name, color, size = 20 }: { name: string | null; color: stri
   );
 }
 
+// ─── Animated progress bar ───────────────────────────────────────────────────
+
+function ProgressBar({ progress, unlocked }: { progress: number; unlocked: boolean }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: progress,
+      duration: 800,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [progress]);
+
+  const width = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  return (
+    <View style={pbStyles.track}>
+      <Animated.View
+        style={[
+          pbStyles.fill,
+          { width },
+          unlocked ? pbStyles.fillUnlocked : pbStyles.fillProgress,
+        ]}
+      />
+    </View>
+  );
+}
+
+const pbStyles = StyleSheet.create({
+  track: {
+    height: 6, borderRadius: 3, backgroundColor: '#1e293b',
+    overflow: 'hidden', width: '100%',
+  },
+  fill: { height: '100%', borderRadius: 3 },
+  fillProgress: { backgroundColor: '#f59e0b' },
+  fillUnlocked: { backgroundColor: '#34d399' },
+});
+
+// ─── Confetti ────────────────────────────────────────────────────────────────
+
+const CONFETTI_COLORS = ['#f59e0b', '#34d399', '#60a5fa', '#f87171', '#a78bfa', '#fb923c', '#e879f9'];
+const CONFETTI_COUNT = 60;
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+interface ConfettiPiece {
+  x: Animated.Value;
+  y: Animated.Value;
+  rotate: Animated.Value;
+  opacity: Animated.Value;
+  color: string;
+  size: number;
+  startX: number;
+}
+
+function Confetti({ visible, onDone }: { visible: boolean; onDone: () => void }) {
+  const pieces = useRef<ConfettiPiece[]>([]);
+
+  if (pieces.current.length === 0) {
+    for (let i = 0; i < CONFETTI_COUNT; i++) {
+      pieces.current.push({
+        x: new Animated.Value(0),
+        y: new Animated.Value(0),
+        rotate: new Animated.Value(0),
+        opacity: new Animated.Value(1),
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        size: 6 + Math.random() * 8,
+        startX: Math.random() * SCREEN_WIDTH,
+      });
+    }
+  }
+
+  useEffect(() => {
+    if (!visible) return;
+    const anims = pieces.current.map((p, i) => {
+      p.x.setValue(0);
+      p.y.setValue(0);
+      p.rotate.setValue(0);
+      p.opacity.setValue(1);
+
+      const dx = (Math.random() - 0.5) * SCREEN_WIDTH * 0.8;
+      const dy = SCREEN_HEIGHT * 0.6 + Math.random() * SCREEN_HEIGHT * 0.4;
+      const delay = i * 18;
+
+      return Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(p.x, { toValue: dx, duration: 1200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(p.y, { toValue: dy, duration: 1200 + Math.random() * 400, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+          Animated.timing(p.rotate, { toValue: 6 + Math.random() * 8, duration: 1400, useNativeDriver: true }),
+          Animated.sequence([
+            Animated.delay(600),
+            Animated.timing(p.opacity, { toValue: 0, duration: 600, useNativeDriver: true }),
+          ]),
+        ]),
+      ]);
+    });
+
+    Animated.parallel(anims).start(() => onDone());
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    <View style={confettiStyles.container} pointerEvents="none">
+      {pieces.current.map((p, i) => (
+        <Animated.View
+          key={i}
+          style={[
+            confettiStyles.piece,
+            {
+              left: p.startX,
+              top: SCREEN_HEIGHT * 0.25,
+              width: p.size,
+              height: p.size * (Math.random() > 0.5 ? 2 : 1),
+              borderRadius: Math.random() > 0.5 ? p.size / 2 : 2,
+              backgroundColor: p.color,
+              opacity: p.opacity,
+              transform: [
+                { translateX: p.x },
+                { translateY: p.y },
+                {
+                  rotate: p.rotate.interpolate({
+                    inputRange: [0, 10],
+                    outputRange: ['0deg', '720deg'],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+const confettiStyles = StyleSheet.create({
+  container: {
+    position: 'absolute', top: 0, left: 0,
+    width: SCREEN_WIDTH, height: SCREEN_HEIGHT,
+    zIndex: 999,
+  },
+  piece: { position: 'absolute' },
+});
+
+// ─── Reward unlock celebration modal ────────────────────────────────────────
+
+function RewardUnlockedModal({
+  reward,
+  onClose,
+}: {
+  reward: Reward | null;
+  onClose: () => void;
+}) {
+  const [showConfetti, setShowConfetti] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(0.6)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reward) {
+      setShowConfetti(true);
+      Animated.parallel([
+        Animated.spring(scaleAnim, { toValue: 1, friction: 6, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+      ]).start();
+    } else {
+      scaleAnim.setValue(0.6);
+      fadeAnim.setValue(0);
+    }
+  }, [reward]);
+
+  if (!reward) return null;
+
+  const IconComp = reward.icon ? (ICON_MAP[reward.icon] ?? Star) : Star;
+  const bg = reward.color ?? '#f59e0b';
+
+  return (
+    <>
+      <Confetti visible={showConfetti} onDone={() => setShowConfetti(false)} />
+      <Modal transparent visible={!!reward} animationType="fade" onRequestClose={onClose}>
+        <Pressable style={unlockStyles.overlay} onPress={onClose}>
+          <Animated.View
+            style={[unlockStyles.card, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}
+          >
+            <Pressable onPress={() => {}}>
+              <Text style={unlockStyles.emoji}>🎉</Text>
+              <Text style={unlockStyles.headline}>You can earn this!</Text>
+              <Text style={unlockStyles.sub}>You now have enough stars for</Text>
+
+              <View style={[unlockStyles.iconWrap, { backgroundColor: bg + '25', borderColor: bg + '50' }]}>
+                {reward.image_url ? (
+                  <Image source={{ uri: reward.image_url }} style={unlockStyles.rewardImg} />
+                ) : (
+                  <IconComp size={44} color={bg} strokeWidth={1.5} />
+                )}
+              </View>
+
+              <Text style={unlockStyles.rewardName}>{reward.title}</Text>
+
+              <View style={unlockStyles.starsPill}>
+                <Star size={16} color="#f59e0b" fill="#f59e0b" />
+                <Text style={unlockStyles.starsText}>{reward.star_cost} stars</Text>
+              </View>
+
+              <TouchableOpacity style={unlockStyles.btn} onPress={onClose} activeOpacity={0.85}>
+                <Text style={unlockStyles.btnText}>Awesome!</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
+const unlockStyles = StyleSheet.create({
+  overlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center', alignItems: 'center', padding: 24,
+  },
+  card: {
+    backgroundColor: '#131c2e', borderRadius: 28,
+    padding: 32, alignItems: 'center', width: '100%',
+    borderWidth: 1, borderColor: '#f59e0b40',
+  },
+  emoji: { fontSize: 48, textAlign: 'center', marginBottom: 8 },
+  headline: {
+    fontFamily: 'Nunito-ExtraBold', fontSize: 28, color: '#f59e0b',
+    textAlign: 'center', marginBottom: 6,
+  },
+  sub: {
+    fontFamily: 'Inter-Regular', fontSize: 14, color: '#94a3b8',
+    textAlign: 'center', marginBottom: 20,
+  },
+  iconWrap: {
+    width: 100, height: 100, borderRadius: 28, borderWidth: 2,
+    justifyContent: 'center', alignItems: 'center',
+    alignSelf: 'center', marginBottom: 16, overflow: 'hidden',
+  },
+  rewardImg: { width: 100, height: 100 },
+  rewardName: {
+    fontFamily: 'Nunito-ExtraBold', fontSize: 22, color: '#f1f5f9',
+    textAlign: 'center', marginBottom: 12,
+  },
+  starsPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#1a1200', borderWidth: 1, borderColor: '#f59e0b40',
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 30,
+    marginBottom: 24,
+  },
+  starsText: { fontFamily: 'Nunito-ExtraBold', fontSize: 18, color: '#f59e0b' },
+  btn: {
+    backgroundColor: '#f59e0b', borderRadius: 14,
+    paddingVertical: 14, paddingHorizontal: 40, width: '100%', alignItems: 'center',
+  },
+  btnText: { fontFamily: 'Nunito-ExtraBold', fontSize: 18, color: '#000' },
+});
+
 export default function ChildHomeScreen() {
   const { childId } = useLocalSearchParams<{ childId: string }>();
   const { activeChild, setActiveChild, profile } = useAuth();
@@ -99,6 +362,8 @@ export default function ChildHomeScreen() {
   const [submitNote, setSubmitNote] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [noteModal, setNoteModal] = useState<{ task: Task; note: string; stars: number } | null>(null);
+  const [unlockedReward, setUnlockedReward] = useState<Reward | null>(null);
+  const prevStarsRef = useRef<number | null>(null);
   const pagerRef = useRef<ScrollView>(null);
 
   const resolvedChildId = childId ?? activeChild?.id;
@@ -114,10 +379,23 @@ export default function ChildHomeScreen() {
       { headers: { Authorization: `Bearer ${supabaseAnonKey}` } }
     );
     const json = await res.json();
+    const newStars: number = json.child?.stars_balance ?? 0;
+    const newRewards: Reward[] = json.rewards ?? [];
+
+    // Check if any reward just became affordable
+    if (prevStarsRef.current !== null && newStars > prevStarsRef.current) {
+      const justUnlocked = newRewards.find(r => {
+        const cost = r.star_cost ?? 0;
+        return cost > 0 && prevStarsRef.current! < cost && newStars >= cost;
+      });
+      if (justUnlocked) setUnlockedReward(justUnlocked);
+    }
+    prevStarsRef.current = newStars;
+
     setChildData(json.child ?? null);
     setTasks(json.tasks ?? []);
     setCompletions(json.completions ?? []);
-    setRewards(json.rewards ?? []);
+    setRewards(newRewards);
     setLoading(false);
     setRefreshing(false);
   }
@@ -336,20 +614,46 @@ export default function ChildHomeScreen() {
                 <Text style={styles.emptyText}>No rewards yet!</Text>
               </View>
             )}
-            {rewards.map(reward => (
-              <View key={reward.id} style={styles.taskCard}>
-                {reward.image_url ? (
-                  <Image source={{ uri: reward.image_url }} style={styles.rewardThumb} />
-                ) : (
-                  <TaskIcon name={reward.icon} color={reward.color} />
-                )}
-                <Text style={styles.taskTitle} numberOfLines={1}>{reward.title}</Text>
-                <View style={styles.starReward}>
-                  <Star size={14} color="#f59e0b" strokeWidth={1.5} />
-                  <Text style={styles.starRewardText}>{reward.star_cost ?? '?'}</Text>
+            {rewards.map(reward => {
+              const cost = reward.star_cost ?? 0;
+              const canAfford = cost > 0 && stars >= cost;
+              const progress = cost > 0 ? Math.min(stars / cost, 1) : 1;
+              const remaining = Math.max(cost - stars, 0);
+
+              return (
+                <View
+                  key={reward.id}
+                  style={[styles.rewardCard, canAfford && styles.rewardCardUnlocked]}
+                >
+                  <View style={styles.rewardCardTop}>
+                    {reward.image_url ? (
+                      <Image source={{ uri: reward.image_url }} style={styles.rewardThumb} />
+                    ) : (
+                      <TaskIcon name={reward.icon} color={reward.color} />
+                    )}
+                    <View style={styles.rewardCardInfo}>
+                      <Text style={styles.taskTitle} numberOfLines={1}>{reward.title}</Text>
+                      <View style={styles.rewardCostRow}>
+                        <Star size={13} color="#f59e0b" fill="#f59e0b" />
+                        <Text style={styles.rewardCostText}>{cost} stars</Text>
+                        {canAfford ? (
+                          <View style={styles.unlockedBadge}>
+                            <Text style={styles.unlockedBadgeText}>✓ Unlocked!</Text>
+                          </View>
+                        ) : (
+                          <Text style={styles.remainingText}>{remaining} to go</Text>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Progress bar */}
+                  <View style={styles.progressTrack}>
+                    <ProgressBar progress={progress} unlocked={canAfford} />
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         </ScrollView>
       </ScrollView>
@@ -435,6 +739,12 @@ export default function ChildHomeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Reward unlocked celebration */}
+      <RewardUnlockedModal
+        reward={unlockedReward}
+        onClose={() => setUnlockedReward(null)}
+      />
 
       {/* Parent note modal */}
       <Modal
@@ -663,4 +973,37 @@ const styles = StyleSheet.create({
   noteFromParentText: {
     fontFamily: 'Inter-Regular', fontSize: 15, color: '#e2e8f0', lineHeight: 22,
   },
+
+  // Reward cards with progress
+  rewardCard: {
+    backgroundColor: '#131c2e', borderRadius: 14,
+    paddingVertical: 14, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: '#1e293b',
+    gap: 10,
+  },
+  rewardCardUnlocked: {
+    borderColor: '#34d39940', backgroundColor: '#0d1f14',
+  },
+  rewardCardTop: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
+  rewardCardInfo: { flex: 1 },
+  rewardCostRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3,
+  },
+  rewardCostText: {
+    fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#94a3b8',
+  },
+  remainingText: {
+    fontFamily: 'Inter-Regular', fontSize: 12, color: '#475569',
+    marginLeft: 2,
+  },
+  unlockedBadge: {
+    backgroundColor: '#0d2918', paddingHorizontal: 8, paddingVertical: 2,
+    borderRadius: 6, marginLeft: 4,
+  },
+  unlockedBadgeText: {
+    fontFamily: 'Inter-SemiBold', fontSize: 11, color: '#34d399',
+  },
+  progressTrack: { width: '100%' },
 });
