@@ -1139,9 +1139,17 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
           <SwipeDismissSheet onDismiss={() => setEditSheet(null)} style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]}>
             <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
 
-            <Text style={[styles.sheetTitle, { textAlign: 'left', fontSize: 20, marginBottom: 20 }]}>Edit Task</Text>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <IconColorPicker
+                compact
+                icon={editIcon}
+                color={editColor}
+                onChangeIcon={setEditIcon}
+                onChangeColor={setEditColor}
+              />
+              <Text style={[styles.sheetTitle, { textAlign: 'center', fontSize: 20, marginTop: 10, marginBottom: 0 }]}>Edit Task</Text>
+            </View>
 
-            {/* Title */}
             <Text style={styles.editLabel}>Title</Text>
             <TextInput
               style={styles.editInput}
@@ -1152,8 +1160,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               returnKeyType="next"
             />
 
-            {/* Description */}
-            <Text style={styles.editLabel}>Description (optional)</Text>
+            <Text style={[styles.editLabel, { marginTop: 14 }]}>Description (optional)</Text>
             <TextInput
               style={[styles.editInput, { minHeight: 60, textAlignVertical: 'top' }]}
               value={editDescription}
@@ -1164,8 +1171,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               returnKeyType="done"
             />
 
-            {/* Stars + Icon */}
-            <Text style={styles.editLabel}>Stars</Text>
+            <Text style={[styles.editLabel, { marginTop: 14 }]}>Stars</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={[styles.editStarRow, { flex: 1, marginBottom: 0 }]}>
                 <TouchableOpacity style={styles.awardStepBtn} onPress={() => setEditStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
@@ -1185,32 +1191,19 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                   <Text style={styles.awardStepBtnText}>+</Text>
                 </TouchableOpacity>
               </View>
-              <IconColorPicker
-                compact
-                icon={editIcon}
-                color={editColor}
-                onChangeIcon={setEditIcon}
-                onChangeColor={setEditColor}
-              />
-            </View>
-
-            {/* Reset mode */}
-            <Text style={[styles.editLabel, { marginTop: 16 }]}>Resets</Text>
-            <View style={styles.resetScheduleRow}>
-              <View style={styles.resetScheduleLeft}>
-                <Text style={styles.resetScheduleLabel}>Set a schedule</Text>
-                <Text style={styles.resetScheduleSub}>Reset on a recurring interval</Text>
+              <View style={styles.inlineResetWrap}>
+                <Text style={styles.inlineResetLabel}>Resets</Text>
+                <TouchableOpacity
+                  style={[styles.resetToggle, editResetMode !== 'instant' && styles.resetToggleOn]}
+                  onPress={() => setEditResetMode(editResetMode === 'instant' ? 'daily' : 'instant')}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.resetToggleThumb, editResetMode !== 'instant' && styles.resetToggleThumbOn]} />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={[styles.resetToggle, editResetMode !== 'instant' && styles.resetToggleOn]}
-                onPress={() => setEditResetMode(editResetMode === 'instant' ? 'daily' : 'instant')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.resetToggleThumb, editResetMode !== 'instant' && styles.resetToggleThumbOn]} />
-              </TouchableOpacity>
             </View>
             {editResetMode !== 'instant' && (
-              <View style={styles.scheduleOptionsRow}>
+              <View style={[styles.scheduleOptionsRow, { marginTop: 8 }]}>
                 {(['daily', 'weekly', 'monthly'] as const).map(mode => (
                   <TouchableOpacity
                     key={mode}
@@ -1283,41 +1276,38 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             />
 
             <Text style={[styles.editLabel, { marginTop: 14 }]}>Stars</Text>
-            <View style={[styles.editStarRow, { marginBottom: 0 }]}>
-              <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
-                <Text style={styles.awardStepBtnText}>−</Text>
-              </TouchableOpacity>
-              <View style={styles.editStarInputWrap}>
-                <Star size={15} color="#f59e0b" fill="#f59e0b" />
-                <TextInput
-                  style={styles.awardStarInput}
-                  value={createStars}
-                  onChangeText={v => setCreateStars(v.replace(/[^0-9]/g, ''))}
-                  keyboardType="number-pad"
-                  selectTextOnFocus
-                />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={[styles.editStarRow, { flex: 1, marginBottom: 0 }]}>
+                <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
+                  <Text style={styles.awardStepBtnText}>−</Text>
+                </TouchableOpacity>
+                <View style={styles.editStarInputWrap}>
+                  <Star size={15} color="#f59e0b" fill="#f59e0b" />
+                  <TextInput
+                    style={styles.awardStarInput}
+                    value={createStars}
+                    onChangeText={v => setCreateStars(v.replace(/[^0-9]/g, ''))}
+                    keyboardType="number-pad"
+                    selectTextOnFocus
+                  />
+                </View>
+                <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
+                  <Text style={styles.awardStepBtnText}>+</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
-                <Text style={styles.awardStepBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={[styles.editLabel, { marginTop: 4 }]}>Resets</Text>
-            <View style={styles.resetScheduleRow}>
-              <View style={styles.resetScheduleLeft}>
-                <Text style={styles.resetScheduleLabel}>Set a schedule</Text>
-                <Text style={styles.resetScheduleSub}>Reset on a recurring interval</Text>
+              <View style={styles.inlineResetWrap}>
+                <Text style={styles.inlineResetLabel}>Resets</Text>
+                <TouchableOpacity
+                  style={[styles.resetToggle, createResetMode !== 'instant' && styles.resetToggleOn]}
+                  onPress={() => setCreateResetMode(createResetMode === 'instant' ? 'daily' : 'instant')}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.resetToggleThumb, createResetMode !== 'instant' && styles.resetToggleThumbOn]} />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={[styles.resetToggle, createResetMode !== 'instant' && styles.resetToggleOn]}
-                onPress={() => setCreateResetMode(createResetMode === 'instant' ? 'daily' : 'instant')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.resetToggleThumb, createResetMode !== 'instant' && styles.resetToggleThumbOn]} />
-              </TouchableOpacity>
             </View>
             {createResetMode !== 'instant' && (
-              <View style={styles.scheduleOptionsRow}>
+              <View style={[styles.scheduleOptionsRow, { marginTop: 8 }]}>
                 {(['daily', 'weekly', 'monthly'] as const).map(mode => (
                   <TouchableOpacity
                     key={mode}
@@ -1976,6 +1966,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e3a5f',
   },
   addTaskBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#60a5fa' },
+  inlineResetWrap: { alignItems: 'center', gap: 6 },
+  inlineResetLabel: { fontFamily: 'Inter-SemiBold', fontSize: 11, color: '#64748b', letterSpacing: 0.6, textTransform: 'uppercase' },
   resetScheduleRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: '#0f1e33', borderWidth: 1.5, borderColor: '#1e3a5f',
