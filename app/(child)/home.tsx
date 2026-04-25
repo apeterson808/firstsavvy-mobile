@@ -60,6 +60,7 @@ interface Reward {
   image_url: string | null;
   icon: string | null;
   color: string | null;
+  redemption_pending?: boolean;
 }
 
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
@@ -363,6 +364,9 @@ export default function ChildHomeScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [noteModal, setNoteModal] = useState<{ task: Task; note: string; stars: number } | null>(null);
   const [unlockedReward, setUnlockedReward] = useState<Reward | null>(null);
+  const [redeemTarget, setRedeemTarget] = useState<Reward | null>(null);
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
   const prevStarsRef = useRef<number | null>(null);
   const pagerRef = useRef<ScrollView>(null);
 
@@ -433,6 +437,41 @@ export default function ChildHomeScreen() {
     } catch {
       setSubmitError('Network error. Please try again.');
       setSubmitting(null);
+    }
+  }
+
+  async function redeemReward() {
+    if (!resolvedChildId || !redeemTarget) return;
+    setRedeeming(true);
+    setRedeemError(null);
+    try {
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+      const res = await fetch(`${supabaseUrl}/functions/v1/get-child-data`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'redeem',
+          childId: resolvedChildId,
+          rewardId: redeemTarget.id,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        setRedeemError(json.error ?? 'Something went wrong. Try again.');
+        setRedeeming(false);
+        return;
+      }
+      setRedeemTarget(null);
+      setRedeemError(null);
+      load();
+    } catch {
+      setRedeemError('Network error. Please try again.');
+    } finally {
+      setRedeeming(false);
     }
   }
 
@@ -621,9 +660,11 @@ export default function ChildHomeScreen() {
               const remaining = Math.max(cost - stars, 0);
 
               return (
-                <View
+                <TouchableOpacity
                   key={reward.id}
                   style={[styles.rewardCard, canAfford && styles.rewardCardUnlocked]}
+                  onPress={() => canAfford && !reward.redemption_pending ? setRedeemTarget(reward) : null}
+                  activeOpacity={canAfford && !reward.redemption_pending ? 0.75 : 1}
                 >
                   <View style={styles.rewardCardTop}>
                     {reward.image_url ? (
@@ -637,9 +678,15 @@ export default function ChildHomeScreen() {
                         <Star size={13} color="#f59e0b" fill="#f59e0b" />
                         <Text style={styles.rewardCostText}>{cost} stars</Text>
                         {canAfford ? (
-                          <View style={styles.unlockedBadge}>
-                            <Text style={styles.unlockedBadgeText}>✓ Unlocked!</Text>
-                          </View>
+                          reward.redemption_pending ? (
+                            <View style={styles.pendingRedeemBadge}>
+                              <Text style={styles.pendingRedeemText}>Requested!</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.unlockedBadge}>
+                              <Text style={styles.unlockedBadgeText}>Tap to redeem</Text>
+                            </View>
+                          )
                         ) : (
                           <Text style={styles.remainingText}>{remaining} to go</Text>
                         )}
@@ -651,7 +698,7 @@ export default function ChildHomeScreen() {
                   <View style={styles.progressTrack}>
                     <ProgressBar progress={progress} unlocked={canAfford} />
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -734,6 +781,74 @@ export default function ChildHomeScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelBtn} onPress={() => { setSelectedTask(null); setSubmitNote(''); setSubmitError(null); }}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Redeem reward sheet */}
+      <Modal
+        visible={!!redeemTarget}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setRedeemTarget(null); setRedeemError(null); }}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => { setRedeemTarget(null); setRedeemError(null); }}>
+          <Pressable style={styles.modalSheet} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <TouchableOpacity style={styles.sheetClose} onPress={() => { setRedeemTarget(null); setRedeemError(null); }}>
+              <X size={18} color="#64748b" />
+            </TouchableOpacity>
+
+            {/* Reward icon */}
+            <View style={[
+              styles.modalIconWrap,
+              { backgroundColor: (redeemTarget?.color ?? '#34d399') + '20', borderColor: (redeemTarget?.color ?? '#34d399') + '40' }
+            ]}>
+              {redeemTarget?.image_url ? (
+                <Image source={{ uri: redeemTarget.image_url }} style={{ width: 80, height: 80, borderRadius: 20 }} />
+              ) : (() => {
+                const IconComp = redeemTarget?.icon ? (ICON_MAP[redeemTarget.icon] ?? Gift) : Gift;
+                return <IconComp size={36} color={redeemTarget?.color ?? '#34d399'} strokeWidth={1.5} />;
+              })()}
+            </View>
+
+            <Text style={styles.modalTaskTitle}>{redeemTarget?.title}</Text>
+            <Text style={styles.modalSubtitle}>Ask your parent to approve this reward!</Text>
+
+            <View style={styles.modalStarsPill}>
+              <Star size={18} color="#f59e0b" fill="#f59e0b" />
+              <Text style={styles.modalStarsText}>
+                {redeemTarget?.star_cost ?? 0} stars
+              </Text>
+            </View>
+
+            {redeemError ? (
+              <Text style={styles.modalError}>{redeemError}</Text>
+            ) : (
+              <Text style={styles.modalNote}>
+                Your parent will get a notification to approve your request.
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={[styles.submitBtn, { backgroundColor: '#34d399' }, redeeming && styles.submitBtnDisabled]}
+              onPress={redeemReward}
+              disabled={redeeming}
+              activeOpacity={0.85}
+            >
+              {redeeming ? (
+                <ActivityIndicator color="#000" />
+              ) : (
+                <>
+                  <Gift size={20} color="#000" strokeWidth={2.5} />
+                  <Text style={styles.submitBtnText}>Request Reward</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => { setRedeemTarget(null); setRedeemError(null); }}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
           </Pressable>
@@ -1004,6 +1119,13 @@ const styles = StyleSheet.create({
   },
   unlockedBadgeText: {
     fontFamily: 'Inter-SemiBold', fontSize: 11, color: '#34d399',
+  },
+  pendingRedeemBadge: {
+    backgroundColor: '#1a1200', paddingHorizontal: 8, paddingVertical: 2,
+    borderRadius: 6, marginLeft: 4, borderWidth: 1, borderColor: '#f59e0b40',
+  },
+  pendingRedeemText: {
+    fontFamily: 'Inter-SemiBold', fontSize: 11, color: '#f59e0b',
   },
   progressTrack: { width: '100%' },
 });
