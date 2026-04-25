@@ -1240,22 +1240,22 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 14 }}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.editLabel, { marginBottom: 8 }]}>Stars</Text>
-                <View style={[styles.editStarRow, { marginBottom: 0 }]}>
-                  <TouchableOpacity style={styles.awardStepBtn} onPress={() => setEditStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
-                    <Text style={styles.awardStepBtnText}>−</Text>
+                <View style={styles.compactStepRow}>
+                  <TouchableOpacity style={styles.compactStepBtn} onPress={() => setEditStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
+                    <Text style={styles.compactStepBtnText}>−</Text>
                   </TouchableOpacity>
-                  <View style={styles.editStarInputWrap}>
-                    <Star size={15} color="#f59e0b" fill="#f59e0b" />
+                  <View style={styles.compactStepVal}>
+                    <Star size={13} color="#f59e0b" fill="#f59e0b" />
                     <TextInput
-                      style={styles.awardStarInput}
+                      style={styles.compactStepInput}
                       value={editStars}
                       onChangeText={v => setEditStars(v.replace(/[^0-9]/g, ''))}
                       keyboardType="number-pad"
                       selectTextOnFocus
                     />
                   </View>
-                  <TouchableOpacity style={styles.awardStepBtn} onPress={() => setEditStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
-                    <Text style={styles.awardStepBtnText}>+</Text>
+                  <TouchableOpacity style={styles.compactStepBtn} onPress={() => setEditStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
+                    <Text style={styles.compactStepBtnText}>+</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1323,22 +1323,22 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 14 }}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.editLabel, { marginBottom: 8 }]}>Stars</Text>
-                <View style={[styles.editStarRow, { marginBottom: 0 }]}>
-                  <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
-                    <Text style={styles.awardStepBtnText}>−</Text>
+                <View style={styles.compactStepRow}>
+                  <TouchableOpacity style={styles.compactStepBtn} onPress={() => setCreateStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
+                    <Text style={styles.compactStepBtnText}>−</Text>
                   </TouchableOpacity>
-                  <View style={styles.editStarInputWrap}>
-                    <Star size={15} color="#f59e0b" fill="#f59e0b" />
+                  <View style={styles.compactStepVal}>
+                    <Star size={13} color="#f59e0b" fill="#f59e0b" />
                     <TextInput
-                      style={styles.awardStarInput}
+                      style={styles.compactStepInput}
                       value={createStars}
                       onChangeText={v => setCreateStars(v.replace(/[^0-9]/g, ''))}
                       keyboardType="number-pad"
                       selectTextOnFocus
                     />
                   </View>
-                  <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
-                    <Text style={styles.awardStepBtnText}>+</Text>
+                  <TouchableOpacity style={styles.compactStepBtn} onPress={() => setCreateStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
+                    <Text style={styles.compactStepBtnText}>+</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1990,4 +1990,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e3a5f',
   },
   addTaskBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#60a5fa' },
+  compactStepRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#0f1e33', borderWidth: 1.5, borderColor: '#1e3a5f',
+    borderRadius: 12, height: 48, overflow: 'hidden',
+  },
+  compactStepBtn: {
+    width: 40, height: 48, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#1e293b',
+  },
+  compactStepBtnText: { fontFamily: 'Nunito-Bold', fontSize: 22, color: '#f1f5f9', lineHeight: 26 },
+  compactStepVal: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+  },
+  compactStepInput: {
+    fontFamily: 'Nunito-ExtraBold', fontSize: 20, color: '#f59e0b',
+    textAlign: 'center', width: 36,
+  },
 });
