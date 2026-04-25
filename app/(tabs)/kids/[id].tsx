@@ -393,6 +393,14 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   const [createResetMode, setCreateResetMode] = useState<'instant' | 'daily' | 'weekly' | 'monthly'>('instant');
   const [createSaving, setCreateSaving] = useState(false);
 
+  const [createRewardSheet, setCreateRewardSheet] = useState(false);
+  const [createRewardTitle, setCreateRewardTitle] = useState('');
+  const [createRewardDescription, setCreateRewardDescription] = useState('');
+  const [createRewardIcon, setCreateRewardIcon] = useState<string | null>(null);
+  const [createRewardColor, setCreateRewardColor] = useState<string | null>(null);
+  const [createRewardStars, setCreateRewardStars] = useState('10');
+  const [createRewardSaving, setCreateRewardSaving] = useState(false);
+
   const tabUnderlineX = useRef(new Animated.Value(0)).current;
   const tabBarWidth = useRef(0);
 
@@ -563,6 +571,34 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
     });
     setCreateSheet(false);
     setCreateSaving(false);
+    await load();
+  }
+
+  function openCreateRewardSheet() {
+    setCreateRewardTitle('');
+    setCreateRewardDescription('');
+    setCreateRewardIcon(null);
+    setCreateRewardColor(null);
+    setCreateRewardStars('10');
+    setCreateRewardSheet(true);
+  }
+
+  async function saveCreateReward() {
+    if (!createRewardTitle.trim() || !profile) return;
+    setCreateRewardSaving(true);
+    await supabase.from('rewards').insert({
+      title: createRewardTitle.trim(),
+      description: createRewardDescription.trim() || null,
+      icon: createRewardIcon,
+      color: createRewardColor,
+      star_cost: Math.max(0, parseInt(createRewardStars, 10) || 0),
+      assigned_to_child_id: childId,
+      profile_id: profile.id,
+      is_active: true,
+      status: 'active',
+    });
+    setCreateRewardSheet(false);
+    setCreateRewardSaving(false);
     await load();
   }
 
@@ -987,6 +1023,92 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
         </Pressable>
       </Modal>
 
+      {/* Create Reward sheet */}
+      <Modal transparent visible={createRewardSheet} animationType="slide" onRequestClose={() => setCreateRewardSheet(false)}>
+        <Pressable style={styles.sheetOverlay} onPress={() => setCreateRewardSheet(false)}>
+          <Pressable style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]} onPress={() => {}}>
+            <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
+            <TouchableOpacity style={styles.sheetClose} onPress={() => setCreateRewardSheet(false)}>
+              <CircleX size={18} color="#64748b" />
+            </TouchableOpacity>
+
+            <Text style={[styles.sheetTitle, { textAlign: 'left', fontSize: 20, marginBottom: 20 }]}>New Reward</Text>
+
+            <Text style={styles.editLabel}>Title</Text>
+            <TextInput
+              style={styles.editInput}
+              placeholder="e.g. Pizza night, Movie time…"
+              placeholderTextColor="#334155"
+              value={createRewardTitle}
+              onChangeText={setCreateRewardTitle}
+              maxLength={60}
+            />
+
+            <Text style={[styles.editLabel, { marginTop: 14 }]}>Star Cost</Text>
+            <TextInput
+              style={styles.editInput}
+              placeholder="10"
+              placeholderTextColor="#334155"
+              value={createRewardStars}
+              onChangeText={setCreateRewardStars}
+              keyboardType="numeric"
+              maxLength={5}
+            />
+
+            <Text style={[styles.editLabel, { marginTop: 14 }]}>Icon</Text>
+            <View style={styles.iconPickerRow}>
+              {Object.keys(ICON_MAP).map(name => {
+                const Ic = ICON_MAP[name];
+                const selected = createRewardIcon === name;
+                return (
+                  <TouchableOpacity
+                    key={name}
+                    style={[styles.iconPickerBtn, selected && styles.iconPickerBtnActive]}
+                    onPress={() => setCreateRewardIcon(selected ? null : name)}
+                    activeOpacity={0.7}
+                  >
+                    <Ic size={18} color={selected ? '#f59e0b' : '#475569'} strokeWidth={1.8} />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.editLabel, { marginTop: 14 }]}>Color</Text>
+            <View style={styles.colorPickerRow}>
+              {['#f59e0b', '#ef4444', '#22c55e', '#3b82f6', '#06b6d4', '#ec4899', '#f97316', '#84cc16', '#6b7280'].map(c => {
+                const selected = createRewardColor === c;
+                return (
+                  <TouchableOpacity
+                    key={c}
+                    style={[styles.colorSwatch, { backgroundColor: c }, selected && styles.colorSwatchSelected]}
+                    onPress={() => setCreateRewardColor(c)}
+                    activeOpacity={0.7}
+                  >
+                    {selected && <Check size={12} color="#fff" strokeWidth={3} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.awardConfirmBtn, { marginTop: 24, backgroundColor: '#f59e0b' }, (!createRewardTitle.trim() || createRewardSaving) && { opacity: 0.5 }]}
+              onPress={saveCreateReward}
+              disabled={!createRewardTitle.trim() || createRewardSaving}
+              activeOpacity={0.85}
+            >
+              {createRewardSaving
+                ? <ActivityIndicator color="#000" size={18} />
+                : <><Gift size={18} color="#000" strokeWidth={2.5} /><Text style={[styles.awardConfirmText, { color: '#000' }]}>Add Reward</Text></>
+              }
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.awardCancelBtn} onPress={() => setCreateRewardSheet(false)}>
+              <Text style={styles.awardCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -1125,6 +1247,10 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
             {activeTab === 'Rewards' && (
               <View>
+                <TouchableOpacity style={styles.addTaskBtn} onPress={openCreateRewardSheet} activeOpacity={0.7}>
+                  <Plus size={15} color="#f59e0b" />
+                  <Text style={[styles.addTaskBtnText, { color: '#f59e0b' }]}>Add Reward</Text>
+                </TouchableOpacity>
                 {rewards.length === 0 && <Text style={styles.emptyMsg}>No rewards assigned yet.</Text>}
                 {rewards.map((reward, idx) => {
                   const cost = reward.star_cost ?? 0;
