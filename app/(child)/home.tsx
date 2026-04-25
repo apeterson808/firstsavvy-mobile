@@ -555,15 +555,6 @@ export default function ChildHomeScreen() {
           </View>
         </View>
 
-        {/* Page dots */}
-        <View style={styles.pageDots}>
-          <TouchableOpacity onPress={() => goToPage(0)} style={styles.dotWrap}>
-            <View style={[styles.dot, activePage === 0 && styles.dotActive]} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => goToPage(1)} style={styles.dotWrap}>
-            <View style={[styles.dot, activePage === 1 && styles.dotActive]} />
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Horizontal pager */}
@@ -704,6 +695,16 @@ export default function ChildHomeScreen() {
           </View>
         </ScrollView>
       </ScrollView>
+
+      {/* Page dots */}
+      <View style={styles.pageDots}>
+        <TouchableOpacity onPress={() => goToPage(0)} style={styles.dotWrap}>
+          <View style={[styles.dot, activePage === 0 && styles.dotActive]} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => goToPage(1)} style={styles.dotWrap}>
+          <View style={[styles.dot, activePage === 1 && styles.dotActive]} />
+        </TouchableOpacity>
+      </View>
 
       {/* Task completion modal */}
       <Modal
@@ -949,7 +950,7 @@ const styles = StyleSheet.create({
   starsValue: { fontFamily: 'Nunito-ExtraBold', fontSize: 44, color: '#f59e0b', lineHeight: 52 },
 
   // Page dots
-  pageDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginBottom: 14 },
+  pageDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 12, backgroundColor: '#0d1117' },
   dotWrap: { padding: 4 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#334155' },
   dotActive: { backgroundColor: '#f59e0b', width: 24 },
