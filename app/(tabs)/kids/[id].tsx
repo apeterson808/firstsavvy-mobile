@@ -1075,9 +1075,6 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
           <SwipeDismissSheet onDismiss={() => setAwardModal(null)} style={styles.awardSheet}>
             <View style={styles.sheetHandle} />
 
-            <TouchableOpacity style={styles.sheetClose} onPress={() => setAwardModal(null)}>
-              <CircleX size={18} color="#64748b" />
-            </TouchableOpacity>
 
             <View style={[styles.awardSheetIcon, { backgroundColor: (awardModal?.task.color ?? '#f59e0b') + '20', borderColor: (awardModal?.task.color ?? '#f59e0b') + '40' }]}>
               {(() => {
@@ -1140,9 +1137,6 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
         <Pressable style={styles.sheetOverlay} onPress={() => setEditSheet(null)}>
           <SwipeDismissSheet onDismiss={() => setEditSheet(null)} style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]}>
             <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
-            <TouchableOpacity style={styles.sheetClose} onPress={() => setEditSheet(null)}>
-              <CircleX size={18} color="#64748b" />
-            </TouchableOpacity>
 
             <Text style={[styles.sheetTitle, { textAlign: 'left', fontSize: 20, marginBottom: 20 }]}>Edit Task</Text>
 
@@ -1254,9 +1248,6 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
         <Pressable style={styles.sheetOverlay} onPress={() => setCreateSheet(false)}>
           <SwipeDismissSheet onDismiss={() => setCreateSheet(false)} style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]}>
             <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
-            <TouchableOpacity style={styles.sheetClose} onPress={() => setCreateSheet(false)}>
-              <CircleX size={18} color="#64748b" />
-            </TouchableOpacity>
 
             <Text style={[styles.sheetTitle, { textAlign: 'left', fontSize: 20, marginBottom: 20 }]}>New Task</Text>
 
@@ -1365,9 +1356,6 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
         <Pressable style={styles.sheetOverlay} onPress={() => setCreateRewardSheet(false)}>
           <SwipeDismissSheet onDismiss={() => setCreateRewardSheet(false)} style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]}>
             <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
-            <TouchableOpacity style={styles.sheetClose} onPress={() => setCreateRewardSheet(false)}>
-              <CircleX size={18} color="#64748b" />
-            </TouchableOpacity>
 
             <Text style={[styles.sheetTitle, { textAlign: 'left', fontSize: 20, marginBottom: 20 }]}>New Reward</Text>
 
@@ -1930,11 +1918,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#1e293b',
   },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#334155', marginBottom: 20 },
-  sheetClose: {
-    position: 'absolute', top: 20, right: 20,
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: '#1e293b', justifyContent: 'center', alignItems: 'center',
-  },
   awardSheetIcon: {
     width: 80, height: 80, borderRadius: 24,
     justifyContent: 'center', alignItems: 'center',
