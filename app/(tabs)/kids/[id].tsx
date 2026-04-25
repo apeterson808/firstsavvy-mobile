@@ -306,8 +306,8 @@ function IconColorPicker({ icon, color, onChangeIcon, onChangeColor, label = 'Ic
     <>
       {!compact && <Text style={icpStyles.label}>{label}</Text>}
       {compact ? (
-        <TouchableOpacity style={[icpStyles.previewIcon, { backgroundColor: activeColor }]} onPress={openPicker} activeOpacity={0.75}>
-          <PreviewIcon size={22} color="#ffffff" strokeWidth={1.8} />
+        <TouchableOpacity style={[icpStyles.previewIcon, icpStyles.compactBtn, { backgroundColor: activeColor }]} onPress={openPicker} activeOpacity={0.75}>
+          <PreviewIcon size={26} color="#ffffff" strokeWidth={1.8} />
         </TouchableOpacity>
       ) : (
       <TouchableOpacity style={icpStyles.previewBtn} onPress={openPicker} activeOpacity={0.75}>
@@ -406,6 +406,7 @@ const icpStyles = StyleSheet.create({
     borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
   previewIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  compactBtn: { width: 52, height: 52, borderRadius: 14 },
   previewText: { flex: 1 },
   previewTitle: { fontFamily: 'Inter-SemiBold', fontSize: 14, color: '#e2e8f0' },
   previewSub: { fontFamily: 'Inter-Regular', fontSize: 11, color: '#475569', marginTop: 2 },
@@ -1251,17 +1252,25 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
             <Text style={[styles.sheetTitle, { textAlign: 'left', fontSize: 20, marginBottom: 20 }]}>New Task</Text>
 
-            <Text style={styles.editLabel}>Title</Text>
-            <TextInput
-              style={styles.editInput}
-              value={createTitle}
-              onChangeText={setCreateTitle}
-              placeholder="Task title"
-              placeholderTextColor="#475569"
-              returnKeyType="next"
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <IconColorPicker
+                compact
+                icon={createIcon}
+                color={createColor}
+                onChangeIcon={setCreateIcon}
+                onChangeColor={setCreateColor}
+              />
+              <TextInput
+                style={[styles.editInput, { flex: 1, marginBottom: 0 }]}
+                value={createTitle}
+                onChangeText={setCreateTitle}
+                placeholder="Task title"
+                placeholderTextColor="#475569"
+                returnKeyType="next"
+              />
+            </View>
 
-            <Text style={styles.editLabel}>Description (optional)</Text>
+            <Text style={[styles.editLabel, { marginTop: 14 }]}>Description (optional)</Text>
             <TextInput
               style={[styles.editInput, { minHeight: 60, textAlignVertical: 'top' }]}
               value={createDescription}
@@ -1272,33 +1281,24 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               returnKeyType="done"
             />
 
-            <Text style={styles.editLabel}>Stars</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={[styles.editStarRow, { flex: 1, marginBottom: 0 }]}>
-                <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
-                  <Text style={styles.awardStepBtnText}>−</Text>
-                </TouchableOpacity>
-                <View style={styles.editStarInputWrap}>
-                  <Star size={15} color="#f59e0b" fill="#f59e0b" />
-                  <TextInput
-                    style={styles.awardStarInput}
-                    value={createStars}
-                    onChangeText={v => setCreateStars(v.replace(/[^0-9]/g, ''))}
-                    keyboardType="number-pad"
-                    selectTextOnFocus
-                  />
-                </View>
-                <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
-                  <Text style={styles.awardStepBtnText}>+</Text>
-                </TouchableOpacity>
+            <Text style={[styles.editLabel, { marginTop: 14 }]}>Stars</Text>
+            <View style={[styles.editStarRow, { marginBottom: 0 }]}>
+              <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
+                <Text style={styles.awardStepBtnText}>−</Text>
+              </TouchableOpacity>
+              <View style={styles.editStarInputWrap}>
+                <Star size={15} color="#f59e0b" fill="#f59e0b" />
+                <TextInput
+                  style={styles.awardStarInput}
+                  value={createStars}
+                  onChangeText={v => setCreateStars(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  selectTextOnFocus
+                />
               </View>
-              <IconColorPicker
-                compact
-                icon={createIcon}
-                color={createColor}
-                onChangeIcon={setCreateIcon}
-                onChangeColor={setCreateColor}
-              />
+              <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
+                <Text style={styles.awardStepBtnText}>+</Text>
+              </TouchableOpacity>
             </View>
 
             <Text style={[styles.editLabel, { marginTop: 4 }]}>Resets</Text>
@@ -1359,15 +1359,23 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
 
             <Text style={[styles.sheetTitle, { textAlign: 'left', fontSize: 20, marginBottom: 20 }]}>New Reward</Text>
 
-            <Text style={styles.editLabel}>Title</Text>
-            <TextInput
-              style={styles.editInput}
-              placeholder="e.g. Pizza night, Movie time…"
-              placeholderTextColor="#334155"
-              value={createRewardTitle}
-              onChangeText={setCreateRewardTitle}
-              maxLength={60}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <IconColorPicker
+                compact
+                icon={createRewardIcon}
+                color={createRewardColor}
+                onChangeIcon={setCreateRewardIcon}
+                onChangeColor={setCreateRewardColor}
+              />
+              <TextInput
+                style={[styles.editInput, { flex: 1, marginBottom: 0 }]}
+                placeholder="e.g. Pizza night, Movie time…"
+                placeholderTextColor="#334155"
+                value={createRewardTitle}
+                onChangeText={setCreateRewardTitle}
+                maxLength={60}
+              />
+            </View>
 
             <Text style={[styles.editLabel, { marginTop: 14 }]}>Description (optional)</Text>
             <TextInput
@@ -1381,32 +1389,23 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
             />
 
             <Text style={[styles.editLabel, { marginTop: 14 }]}>Star Cost</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={[styles.editStarRow, { flex: 1, marginBottom: 0 }]}>
-                <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateRewardStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
-                  <Text style={styles.awardStepBtnText}>−</Text>
-                </TouchableOpacity>
-                <View style={styles.editStarInputWrap}>
-                  <Star size={15} color="#f59e0b" fill="#f59e0b" />
-                  <TextInput
-                    style={styles.awardStarInput}
-                    value={createRewardStars}
-                    onChangeText={v => setCreateRewardStars(v.replace(/[^0-9]/g, ''))}
-                    keyboardType="number-pad"
-                    selectTextOnFocus
-                  />
-                </View>
-                <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateRewardStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
-                  <Text style={styles.awardStepBtnText}>+</Text>
-                </TouchableOpacity>
+            <View style={[styles.editStarRow, { marginBottom: 0 }]}>
+              <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateRewardStars(s => String(Math.max(0, (parseInt(s, 10) || 0) - 1)))} activeOpacity={0.7}>
+                <Text style={styles.awardStepBtnText}>−</Text>
+              </TouchableOpacity>
+              <View style={styles.editStarInputWrap}>
+                <Star size={15} color="#f59e0b" fill="#f59e0b" />
+                <TextInput
+                  style={styles.awardStarInput}
+                  value={createRewardStars}
+                  onChangeText={v => setCreateRewardStars(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  selectTextOnFocus
+                />
               </View>
-              <IconColorPicker
-                compact
-                icon={createRewardIcon}
-                color={createRewardColor}
-                onChangeIcon={setCreateRewardIcon}
-                onChangeColor={setCreateRewardColor}
-              />
+              <TouchableOpacity style={styles.awardStepBtn} onPress={() => setCreateRewardStars(s => String((parseInt(s, 10) || 0) + 1))} activeOpacity={0.7}>
+                <Text style={styles.awardStepBtnText}>+</Text>
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity
