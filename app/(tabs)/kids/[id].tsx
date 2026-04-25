@@ -1237,7 +1237,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               returnKeyType="done"
             />
 
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 10, marginTop: 14 }}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.editLabel, { marginBottom: 8 }]}>Stars</Text>
                 <View style={[styles.editStarRow, { marginBottom: 0 }]}>
@@ -1259,7 +1259,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                   </TouchableOpacity>
                 </View>
               </View>
-              <View style={{ width: 120 }}>
+              <View style={{ width: 140, alignSelf: 'stretch', justifyContent: 'flex-end' }}>
                 <Text style={[styles.editLabel, { marginBottom: 8 }]}>Schedule</Text>
                 <ResetDropdown value={editResetMode} onChange={setEditResetMode} />
               </View>
@@ -1320,7 +1320,7 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
               returnKeyType="done"
             />
 
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 10, marginTop: 14 }}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.editLabel, { marginBottom: 8 }]}>Stars</Text>
                 <View style={[styles.editStarRow, { marginBottom: 0 }]}>
