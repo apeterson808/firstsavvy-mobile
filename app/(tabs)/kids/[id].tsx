@@ -861,6 +861,15 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
   const [createRewardStars, setCreateRewardStars] = useState('10');
   const [createRewardSaving, setCreateRewardSaving] = useState(false);
 
+  const [editProfileSheet, setEditProfileSheet] = useState(false);
+  const [editProfileFirstName, setEditProfileFirstName] = useState('');
+  const [editProfileLastName, setEditProfileLastName] = useState('');
+  const [editProfileDisplayName, setEditProfileDisplayName] = useState('');
+  const [editProfileDob, setEditProfileDob] = useState('');
+  const [editProfileAvatar, setEditProfileAvatar] = useState('');
+  const [editProfileSaving, setEditProfileSaving] = useState(false);
+  const [editProfileError, setEditProfileError] = useState<string | null>(null);
+
   const tabUnderlineX = useRef(new Animated.Value(0)).current;
   const tabBarWidth = useRef(0);
 
@@ -1059,6 +1068,54 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
     });
     setCreateRewardSheet(false);
     setCreateRewardSaving(false);
+    await load();
+  }
+
+  function openEditProfile() {
+    if (!child) return;
+    setEditProfileFirstName(child.first_name ?? '');
+    setEditProfileLastName(child.last_name ?? '');
+    setEditProfileDisplayName(child.display_name ?? '');
+    setEditProfileDob(child.date_of_birth ?? '');
+    setEditProfileAvatar(child.avatar_url ?? '');
+    setEditProfileError(null);
+    setEditProfileSheet(true);
+  }
+
+  async function saveEditProfile() {
+    if (!child) return;
+    setEditProfileSaving(true);
+    setEditProfileError(null);
+    const firstName = editProfileFirstName.trim();
+    const lastName = editProfileLastName.trim();
+    const displayName = editProfileDisplayName.trim();
+    const dob = editProfileDob.trim();
+    const avatarUrl = editProfileAvatar.trim();
+
+    // Basic DOB validation
+    if (dob && !/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+      setEditProfileError('Date of birth must be YYYY-MM-DD');
+      setEditProfileSaving(false);
+      return;
+    }
+
+    const updates: Record<string, string | null> = {
+      first_name: firstName || null,
+      last_name: lastName || null,
+      display_name: displayName || null,
+      date_of_birth: dob || null,
+      avatar_url: avatarUrl || null,
+      child_name: firstName && lastName ? `${firstName} ${lastName}` : firstName || child.child_name,
+    };
+
+    const { error } = await supabase.from('child_profiles').update(updates).eq('id', childId);
+    if (error) {
+      setEditProfileError(error.message);
+      setEditProfileSaving(false);
+      return;
+    }
+    setEditProfileSheet(false);
+    setEditProfileSaving(false);
     await load();
   }
 
@@ -1443,12 +1500,114 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
         </Pressable>
       </Modal>
 
+      {/* Edit profile sheet */}
+      <Modal transparent visible={editProfileSheet} animationType="slide" onRequestClose={() => setEditProfileSheet(false)}>
+        <Pressable style={styles.sheetOverlay} onPress={() => setEditProfileSheet(false)}>
+          <SwipeDismissSheet onDismiss={() => setEditProfileSheet(false)} style={[styles.awardSheet, { alignItems: 'stretch', paddingBottom: 48 }]}>
+            <View style={[styles.sheetHandle, { alignSelf: 'center' }]} />
+
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              {editProfileAvatar ? (
+                <Image source={{ uri: editProfileAvatar }} style={epStyles.avatarPreview} />
+              ) : (
+                <View style={epStyles.avatarFallback}>
+                  <Text style={epStyles.avatarFallbackText}>{(editProfileDisplayName || editProfileFirstName || child?.child_name || '?').charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
+              <Text style={[styles.sheetTitle, { textAlign: 'center', fontSize: 20, marginTop: 10, marginBottom: 0 }]}>Edit Profile</Text>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={styles.editLabel}>First Name</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editProfileFirstName}
+                onChangeText={setEditProfileFirstName}
+                placeholder="First name"
+                placeholderTextColor="#475569"
+                returnKeyType="next"
+                autoCapitalize="words"
+              />
+
+              <Text style={[styles.editLabel, { marginTop: 14 }]}>Last Name</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editProfileLastName}
+                onChangeText={setEditProfileLastName}
+                placeholder="Last name"
+                placeholderTextColor="#475569"
+                returnKeyType="next"
+                autoCapitalize="words"
+              />
+
+              <Text style={[styles.editLabel, { marginTop: 14 }]}>Display Name (optional)</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editProfileDisplayName}
+                onChangeText={setEditProfileDisplayName}
+                placeholder="Nickname shown in app"
+                placeholderTextColor="#475569"
+                returnKeyType="next"
+                autoCapitalize="words"
+              />
+
+              <Text style={[styles.editLabel, { marginTop: 14 }]}>Date of Birth</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editProfileDob}
+                onChangeText={setEditProfileDob}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#475569"
+                returnKeyType="next"
+                keyboardType="numbers-and-punctuation"
+              />
+
+              <Text style={[styles.editLabel, { marginTop: 14 }]}>Avatar URL (optional)</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editProfileAvatar}
+                onChangeText={setEditProfileAvatar}
+                placeholder="https://..."
+                placeholderTextColor="#475569"
+                returnKeyType="done"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+
+              {editProfileError ? (
+                <Text style={epStyles.errorText}>{editProfileError}</Text>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.awardConfirmBtn, { marginTop: 24, backgroundColor: '#2563eb' }, editProfileSaving && { opacity: 0.5 }]}
+                onPress={saveEditProfile}
+                disabled={editProfileSaving}
+                activeOpacity={0.85}
+              >
+                {editProfileSaving
+                  ? <ActivityIndicator color="#fff" size={18} />
+                  : <><Check size={18} color="#fff" strokeWidth={2.5} /><Text style={[styles.awardConfirmText, { color: '#fff' }]}>Save Changes</Text></>
+                }
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.awardCancelBtn} onPress={() => setEditProfileSheet(false)}>
+                <Text style={styles.awardCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </SwipeDismissSheet>
+        </Pressable>
+      </Modal>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#60a5fa" />}
       >
         <LinearGradient colors={['#1e3a5f', '#0f172a']} style={styles.profileCard}>
+          <TouchableOpacity onPress={openEditProfile} activeOpacity={0.8} style={styles.editProfileBtn}>
+            <Pencil size={14} color="#94a3b8" />
+          </TouchableOpacity>
           {child.avatar_url ? (
             <Image source={{ uri: child.avatar_url }} style={styles.avatarImg} />
           ) : (
@@ -1468,6 +1627,11 @@ function ChildDetail({ childId, profile }: { childId: string; profile: { id: str
                 <Text style={styles.levelChipText}>{levelName}</Text>
               </View>
             ) : null}
+            {child.date_of_birth && (
+              <Text style={styles.profileAge}>
+                {calcAge(child.date_of_birth) != null ? `Age ${calcAge(child.date_of_birth)}` : ''}
+              </Text>
+            )}
           </View>
           {child.family_role !== 'spouse_partner' && (
             <View style={styles.starsBadge}>
@@ -1990,4 +2154,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e3a5f',
   },
   addTaskBtnText: { fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#60a5fa' },
+  editProfileBtn: {
+    position: 'absolute', top: 10, right: 10,
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: '#1e3a5f', justifyContent: 'center', alignItems: 'center',
+    zIndex: 10,
+  },
+  profileAge: { fontFamily: 'Inter-Regular', fontSize: 12, color: '#475569' },
+});
+
+const epStyles = StyleSheet.create({
+  avatarPreview: {
+    width: 80, height: 80, borderRadius: 40,
+    borderWidth: 2, borderColor: '#2563eb', marginBottom: 4,
+  },
+  avatarFallback: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: '#2563eb', justifyContent: 'center', alignItems: 'center', marginBottom: 4,
+  },
+  avatarFallbackText: { fontFamily: 'Nunito-ExtraBold', fontSize: 32, color: '#fff' },
+  errorText: {
+    fontFamily: 'Inter-SemiBold', fontSize: 13, color: '#f87171',
+    textAlign: 'center', marginTop: 8, marginBottom: 4,
+  },
 });
