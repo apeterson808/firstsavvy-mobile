@@ -17,7 +17,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Star, Music, Bed, Trash2, Smile, Gift, Sparkles, Plane, ShoppingBag, Heart, Zap, BookOpen, Utensils, Hop as Home, CircleCheck, X } from 'lucide-react-native';
+import {
+  Star, Music, Bed, Trash2, Smile, Gift, Sparkles, Plane, ShoppingBag,
+  Heart, Zap, BookOpen, Utensils, Hop as Home, CircleCheck, X,
+  Dumbbell, Bike, ShoppingCart, Dog, Brush, Leaf, Sun, Moon, Gamepad2,
+  Bath, Apple, Baby, Backpack, BicepsFlexed, Bird, Bone, Book, BrainCircuit,
+  Bus, Calculator, Camera, Car, Cat, ChefHat, CircleDollarSign, Clipboard,
+  Clock, Cloud, Coffee, Coins, Cookie, CookingPot, Crosshair, Crown, Drama,
+  Droplets, Egg, Flame, Flower2, Glasses, GraduationCap, Headphones,
+  IceCreamCone, Laptop, Layers, Lightbulb, List, Medal, Mic, Mountain,
+  Paintbrush, Palette, PawPrint, Pencil, PersonStanding, Piano, Pizza,
+  Puzzle, Rainbow, Rocket, School, Scissors, Shirt, Shrub, Snowflake, Soup,
+  Sprout, Swords, Target, TestTube, Toilet, TreePine, Trophy, Tv, Umbrella,
+  Volleyball, Waves, Wind, Wrench,
+} from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -48,8 +61,17 @@ interface Reward {
 }
 
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
-  Music, Bed, Star, Trash2, Smile, Gift, Plane, ShoppingBag,
-  Heart, Zap, BookOpen, Utensils, Home, Sparkles,
+  Music, Bed, Star, Trash2, Smile, Gift, Plane, ShoppingBag, Heart, Zap,
+  BookOpen, Utensils, Home, Sparkles, Dumbbell, Bike, ShoppingCart, Dog,
+  Brush, Leaf, Sun, Moon, Gamepad2, Bath, Apple, Baby, Backpack,
+  BicepsFlexed, Bird, Bone, Book, BrainCircuit, Bus, Calculator, Camera,
+  Car, Cat, ChefHat, CircleDollarSign, Clipboard, Clock, Cloud, Coffee,
+  Coins, Cookie, CookingPot, Crosshair, Crown, Drama, Droplets, Egg, Flame,
+  Flower2, Glasses, GraduationCap, Headphones, IceCreamCone, Laptop, Layers,
+  Lightbulb, List, Medal, Mic, Mountain, Paintbrush, Palette, PawPrint,
+  Pencil, PersonStanding, Piano, Pizza, Puzzle, Rainbow, Rocket, School,
+  Scissors, Shirt, Shrub, Snowflake, Soup, Sprout, Swords, Target, TestTube,
+  Toilet, TreePine, Trophy, Tv, Umbrella, Volleyball, Waves, Wind, Wrench,
 };
 
 function TaskIcon({ name, color, size = 20 }: { name: string | null; color: string | null; size?: number }) {
